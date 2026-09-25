@@ -9,6 +9,13 @@
 <meta property="og:description" content="把重複的工作交給系統，把時間留給決策。15 年產品經理、40+ 企業導入實績。" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://modseventeen.com" />
+<meta property="og:image" content="https://modseventeen.com/og-image.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Justin Liao — 企業 AI 導入顧問 × 投資分析工具開發" />
+<meta name="twitter:description" content="把重複的工作交給系統，把時間留給決策。15 年產品經理、40+ 企業導入實績。" />
+<meta name="twitter:image" content="https://modseventeen.com/og-image.jpg" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -440,6 +447,27 @@ img{display:block}
     <a href="https://www.linkedin.com/in/jun-jia-liao-6b7b0a190/" target="_blank" rel="noopener" class="btn-contact btn-outline">LinkedIn</a>
   </div>
   <p style="font-size:14px;color:#006aff;font-weight:600;margin-top:20px">預約即可獲得專屬流程盤點建議</p>
+  <!-- SHARE & QR & VCARD -->
+  <div style="margin-top:60px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
+    <a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Fmodseventeen.com" target="_blank" rel="noopener" class="btn-contact btn-outline" style="font-size:14px;padding:12px 24px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 5.82 2 10.5c0 3.67 3.15 6.74 7.38 7.78-.1.36-.64 2.32-.66 2.47 0 0-.01.12.06.17.07.04.16.02.16.02.21-.03 2.44-1.6 3.45-2.35.52.08 1.06.12 1.61.12 5.52 0 10-3.82 10-8.5S17.52 2 12 2z" fill="#06C755"/></svg>
+      分享到 LINE
+    </a>
+    <button onclick="navigator.clipboard.writeText('https://modseventeen.com').then(()=>{this.textContent='已複製 ✓';setTimeout(()=>this.textContent='複製連結',2000)})" class="btn-contact btn-outline" style="font-size:14px;padding:12px 24px;cursor:pointer;background:transparent">複製連結</button>
+    <button onclick="document.getElementById('qr-modal').style.display='flex'" class="btn-contact btn-outline" style="font-size:14px;padding:12px 24px;cursor:pointer;background:transparent">QR Code</button>
+    <a href="data:text/vcard;charset=utf-8,BEGIN%3AVCARD%0AVERSION%3A3.0%0AFN%3AJustin%20Liao%20(%E5%BB%96%E4%BF%8A%E5%98%89)%0AEMAIL%3Amodseventeen%40gmail.com%0AURL%3Ahttps%3A%2F%2Fmodseventeen.com%0ATITLE%3AAI%20%E5%B0%8E%E5%85%A5%E9%A1%A7%E5%95%8F%20%C3%97%20%E7%94%A2%E5%93%81%E7%B6%93%E7%90%86%0AEND%3AVCARD" download="Justin_Liao.vcf" class="btn-contact btn-outline" style="font-size:14px;padding:12px 24px">存入通訊錄</a>
+  </div>
+
+  <!-- QR MODAL -->
+  <div id="qr-modal" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:20px;padding:40px;text-align:center;max-width:320px">
+      <img src="data:image/png;base64,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" alt="QR Code" style="width:200px;height:200px;margin:0 auto 16px" />
+      <p style="font-size:16px;font-weight:700;margin-bottom:4px">modseventeen.com</p>
+      <p style="font-size:13px;color:#888">掃描或截圖分享</p>
+      <button onclick="this.parentElement.parentElement.style.display='none'" style="margin-top:16px;padding:10px 28px;border-radius:8px;border:none;background:#0a0a0a;color:#fff;font-size:14px;font-weight:600;cursor:pointer">關閉</button>
+    </div>
+  </div>
+
   <div class="footer">© 2026 Justin Liao. Built with intention.</div>
 </section>
 
