@@ -104,6 +104,20 @@ img{display:block}
 
 /* PROCESS */
 .process{padding:120px 24px;background:#f7f7f7}
+
+/* PHILOSOPHY */
+.philosophy{padding:120px 24px;background:#0a0a0a;color:#fff}
+.philosophy-inner{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.philosophy h2{font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.03em;line-height:1.2;margin-bottom:24px}
+.philosophy-accent{color:#4d9aff}
+.philosophy-body p{font-size:17px;line-height:1.8;color:rgba(255,255,255,.75);margin-bottom:24px}
+.philosophy-body p:last-child{margin-bottom:0}
+.philosophy-body strong{color:#fff;font-weight:700}
+.philosophy-cta{display:inline-flex;align-items:center;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;background:#fff;color:#0a0a0a;margin-top:16px;transition:opacity .2s}
+.philosophy-cta:hover{opacity:.85}
+@media(max-width:768px){
+  .philosophy-inner{grid-template-columns:1fr;gap:40px}
+}
 .process-inner{max-width:1120px;margin:0 auto}
 .process-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;counter-reset:step}
 .step{padding:32px 28px;border-radius:16px;background:#fff;border:1px solid #ebebeb}
@@ -259,6 +273,21 @@ img{display:block}
       </div>
     </div>
 
+  </div>
+</section>
+
+<!-- PHILOSOPHY -->
+<section class="philosophy">
+  <div class="philosophy-inner">
+    <div>
+      <h2>AI 放大的是產出，<br>不是<span class="philosophy-accent">能力本身。</span></h2>
+      <a href="#contact" class="philosophy-cta">帶著你的流程來，我們一起拆解</a>
+    </div>
+    <div class="philosophy-body">
+      <p>身為產品經理，我同時具備產品規劃、商業流程、行銷策略與客戶關係的實戰經驗。<strong>加上 AI，我能把這些能力打造成一套自動化系統，讓每個環節都不再依賴手動重複。</strong></p>
+      <p>但解決問題才是根本。我看過太多團隊為了用 AI 而用 AI——產出一堆不必要的東西，滿足了新鮮感，卻忽略了組織的目標與客戶的需求。</p>
+      <p><strong>AI 放大的是你的產出，而不是憑空創造能力。</strong>你必須先具備解決問題的本事，AI 才能把這份本事乘以十倍。否則，再強的工具也只是在放大一場空想。</p>
+    </div>
   </div>
 </section>
 
