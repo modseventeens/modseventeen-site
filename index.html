@@ -1,1085 +1,424 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Justin Liao — 企業 AI 導入顧問 × 投資分析工具開發</title>
-  <meta name="description" content="15 年產品經理、40+ 企業導入實績。幫企業與投資人找出最耗時的流程，用 AI 與自動化縮短 50%–97% 的工時。" />
-  <meta property="og:title" content="Justin Liao — 企業 AI 導入顧問 × 投資分析工具開發" />
-  <meta property="og:description" content="把重複的工作交給系統，把時間留給決策。15 年產品經理、40+ 企業導入實績。" />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://modseventeen.com" />
-  <link rel="icon"
-    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0
-    }
-
-    html {
-      scroll-behavior: smooth;
-      scroll-padding-top: 64px
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang TC", "Noto Sans TC", Arial, sans-serif;
-      color: #0a0a0a;
-      background: #fff;
-      -webkit-font-smoothing: antialiased;
-      line-height: 1.5
-    }
-
-    a {
-      color: inherit
-    }
-
-    img {
-      display: block
-    }
-
-    /* NAV */
-    .nav {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 50;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      background: rgba(255, 255, 255, .88);
-      border-bottom: 1px solid #e5e5e5
-    }
-
-    .nav-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px
-    }
-
-    .nav-brand {
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: -.02em;
-      text-decoration: none
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 28px;
-      font-size: 14px;
-      font-weight: 500
-    }
-
-    .nav-links a {
-      text-decoration: none;
-      color: #666;
-      transition: color .2s
-    }
-
-    .nav-links a:hover,
-    .nav-links a.active {
-      color: #006aff
-    }
-
-    /* HERO */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 120px 24px 80px;
-      max-width: 1120px;
-      margin: 0 auto
-    }
-
-    .hero-tag {
-      font-size: 15px;
-      font-weight: 600;
-      color: #006aff;
-      margin-bottom: 20px;
-      letter-spacing: .02em
-    }
-
-    .hero h1 {
-      font-size: clamp(36px, 6vw, 72px);
-      font-weight: 800;
-      line-height: 1.1;
-      letter-spacing: -.03em;
-      max-width: 860px
-    }
-
-    .hero-sub {
-      font-size: 19px;
-      line-height: 1.7;
-      color: #555;
-      max-width: 600px;
-      margin-top: 32px
-    }
-
-    .hero-btns {
-      display: flex;
-      gap: 16px;
-      margin-top: 40px;
-      flex-wrap: wrap
-    }
-
-    .btn-primary,
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      padding: 14px 32px;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      text-decoration: none;
-      border: none;
-      cursor: pointer;
-      transition: opacity .2s
-    }
-
-    .btn-primary {
-      background: #0a0a0a;
-      color: #fff
-    }
-
-    .btn-primary:hover {
-      opacity: .85
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: #0a0a0a;
-      border: 2px solid #d4d4d4
-    }
-
-    .btn-secondary:hover {
-      border-color: #0a0a0a
-    }
-
-    .stats {
-      display: flex;
-      gap: 40px;
-      margin-top: 72px;
-      flex-wrap: wrap
-    }
-
-    .stat-num {
-      font-size: 32px;
-      font-weight: 800;
-      letter-spacing: -.02em
-    }
-
-    .stat-label {
-      font-size: 14px;
-      color: #888;
-      margin-top: 4px
-    }
-
-    /* CLIENTS */
-    .clients {
-      padding: 64px 24px;
-      max-width: 1120px;
-      margin: 0 auto;
-      border-top: 1px solid #ebebeb
-    }
-
-    .clients-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #999;
-      text-align: center;
-      margin-bottom: 32px;
-      letter-spacing: .08em
-    }
-
-    .clients-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 28px 40px
-    }
-
-    .logo-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      min-width: 100px
-    }
-
-    .logo-item img {
-      height: 36px;
-      max-width: 100px;
-      object-fit: contain;
-      filter: grayscale(100%);
-      opacity: .7;
-      transition: all .2s
-    }
-
-    .logo-item:hover img {
-      filter: grayscale(0%);
-      opacity: 1
-    }
-
-    .logo-fallback {
-      font-size: 14px;
-      font-weight: 700;
-      color: #999;
-      letter-spacing: .02em
-    }
-
-    .logo-name {
-      font-size: 11px;
-      color: #bbb
-    }
-
-    /* SHARED */
-    .section-title {
-      font-size: clamp(28px, 4vw, 48px);
-      font-weight: 800;
-      letter-spacing: -.03em;
-      margin-bottom: 16px
-    }
-
-    .section-sub {
-      font-size: 17px;
-      line-height: 1.7;
-      color: #666;
-      max-width: 600px;
-      margin-bottom: 64px
-    }
-
-    /* ABOUT */
-    .about {
-      padding: 120px 24px;
-      max-width: 1120px;
-      margin: 0 auto
-    }
-
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 24px
-    }
-
-    .card {
-      padding: 32px;
-      border-radius: 16px;
-      background: #fafafa;
-      border: 1px solid #ebebeb
-    }
-
-    .card-icon {
-      font-size: 32px;
-      margin-bottom: 16px
-    }
-
-    .card-header {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 12px;
-      flex-wrap: wrap
-    }
-
-    .card-header h3 {
-      font-size: 18px;
-      font-weight: 700
-    }
-
-    .card-header span {
-      font-size: 13px;
-      color: #006aff;
-      font-weight: 600
-    }
-
-    .card p {
-      font-size: 15px;
-      line-height: 1.65;
-      color: #555
-    }
-
-    /* EXPERIENCE */
-    .experience {
-      padding: 120px 24px;
-      background: #0a0a0a;
-      color: #fff
-    }
-
-    .exp-inner {
-      max-width: 1120px;
-      margin: 0 auto
-    }
-
-    .experience .section-title {
-      margin-bottom: 64px
-    }
-
-    .timeline-item {
-      display: grid;
-      grid-template-columns: 140px 1fr;
-      gap: 32px;
-      padding: 32px 0;
-      border-top: 1px solid rgba(255, 255, 255, .12);
-      align-items: start
-    }
-
-    .timeline-period {
-      font-size: 14px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, .4);
-      font-variant-numeric: tabular-nums
-    }
-
-    .timeline-role {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 4px
-    }
-
-    .timeline-org {
-      font-size: 14px;
-      color: #4d9aff;
-      font-weight: 600;
-      margin-bottom: 12px
-    }
-
-    .timeline-detail {
-      font-size: 15px;
-      line-height: 1.65;
-      color: rgba(255, 255, 255, .6);
-      max-width: 560px
-    }
-
-    .longterm {
-      margin-top: 48px;
-      padding: 28px 32px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, .16);
-      background: rgba(255, 255, 255, .04)
-    }
-
-    .longterm-label {
-      font-size: 13px;
-      color: #4d9aff;
-      font-weight: 600;
-      margin-bottom: 8px;
-      letter-spacing: .04em
-    }
-
-    .longterm-role {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 8px
-    }
-
-    .longterm-detail {
-      font-size: 15px;
-      line-height: 1.65;
-      color: rgba(255, 255, 255, .6);
-      max-width: 640px
-    }
-
-    .exp-meta {
-      margin-top: 64px;
-      display: flex;
-      gap: 48px;
-      flex-wrap: wrap
-    }
-
-    .exp-meta-label {
-      font-size: 13px;
-      color: rgba(255, 255, 255, .4);
-      margin-bottom: 8px
-    }
-
-    .exp-meta-value {
-      font-size: 15px;
-      line-height: 1.8
-    }
-
-    /* SERVICES */
-    .services {
-      padding: 120px 24px;
-      max-width: 1120px;
-      margin: 0 auto
-    }
-
-    .services .section-sub {
-      margin-bottom: 20px
-    }
-
-    .services-highlight {
-      font-size: 15px;
-      color: #006aff;
-      font-weight: 600;
-      margin-bottom: 64px
-    }
-
-    .services-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 28px
-    }
-
-    .service-card {
-      padding: 32px 28px;
-      border-radius: 16px;
-      border: 1px solid #ebebeb;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      gap: 16px
-    }
-
-    .service-label {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #006aff
-    }
-
-    .service-problem {
-      font-size: 20px;
-      font-weight: 800;
-      line-height: 1.4;
-      letter-spacing: -.01em
-    }
-
-    .service-pain {
-      font-size: 15px;
-      line-height: 1.65;
-      color: #666
-    }
-
-    .service-approach {
-      font-size: 15px;
-      line-height: 1.65;
-      color: #333;
-      padding-left: 14px;
-      border-left: 3px solid #006aff
-    }
-
-    .service-approach strong {
-      color: #0a0a0a
-    }
-
-    .cases-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #999;
-      letter-spacing: .08em;
-      margin-top: 4px
-    }
-
-    .cases {
-      display: flex;
-      flex-direction: column;
-      gap: 8px
-    }
-
-    .case-card {
-      padding: 14px 18px;
-      border-radius: 10px;
-      background: #fff;
-      border: 1px solid #ebebeb;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px
-    }
-
-    .case-info {
-      flex: 1;
-      min-width: 0
-    }
-
-    .case-task {
-      font-size: 15px;
-      font-weight: 600
-    }
-
-    .case-time {
-      font-size: 13px;
-      color: #888;
-      margin-top: 2px
-    }
-
-    .case-tag {
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 700;
-      white-space: nowrap
-    }
-
-    .case-tag.speed {
-      background: #f0fdf4;
-      color: #16a34a
-    }
-
-    .case-tag.auto {
-      background: #eef6ff;
-      color: #006aff
-    }
-
-    /* PROCESS */
-    .process {
-      padding: 120px 24px;
-      background: #f7f7f7
-    }
-
-    .process-inner {
-      max-width: 1120px;
-      margin: 0 auto
-    }
-
-    .process-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-      gap: 24px;
-      counter-reset: step
-    }
-
-    .step {
-      padding: 32px 28px;
-      border-radius: 16px;
-      background: #fff;
-      border: 1px solid #ebebeb
-    }
-
-    .step-num {
-      font-size: 40px;
-      font-weight: 800;
-      color: #006aff;
-      letter-spacing: -.03em;
-      line-height: 1;
-      margin-bottom: 20px
-    }
-
-    .step h3 {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 10px
-    }
-
-    .step p {
-      font-size: 15px;
-      line-height: 1.65;
-      color: #555
-    }
-
-    /* CONTACT */
-    .contact {
-      padding: 120px 24px;
-      max-width: 1120px;
-      margin: 0 auto;
-      text-align: center
-    }
-
-    .contact .section-sub {
-      margin: 0 auto 40px;
-      max-width: 520px
-    }
-
-    .contact-btns {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap
-    }
-
-    .btn-contact {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 16px 36px;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: opacity .2s
-    }
-
-    .btn-contact:hover {
-      opacity: .85
-    }
-
-    .btn-dark {
-      background: #0a0a0a;
-      color: #fff
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: #0a0a0a;
-      border: 2px solid #d4d4d4
-    }
-
-    .footer {
-      margin-top: 80px;
-      padding-top: 40px;
-      border-top: 1px solid #e5e5e5;
-      font-size: 13px;
-      color: #aaa
-    }
-
-    /* MOBILE */
-    @media(max-width:640px) {
-      .nav-links {
-        gap: 14px;
-        font-size: 12px
-      }
-
-      .nav-brand {
-        font-size: 16px
-      }
-
-      .timeline-item {
-        grid-template-columns: 1fr;
-        gap: 8px
-      }
-
-      .stats {
-        gap: 24px
-      }
-
-      .services-grid {
-        grid-template-columns: 1fr
-      }
-
-      .hero-sub {
-        font-size: 17px
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Justin Liao — 企業 AI 導入顧問 × 投資分析工具開發</title>
+<meta name="description" content="15 年產品經理、40+ 企業導入實績。幫企業與投資人找出最耗時的流程，用 AI 與自動化縮短 50%–97% 的工時。" />
+<meta property="og:title" content="Justin Liao — 企業 AI 導入顧問 × 投資分析工具開發" />
+<meta property="og:description" content="把重複的工作交給系統，把時間留給決策。15 年產品經理、40+ 企業導入實績。" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://modseventeen.com" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang TC","Noto Sans TC",Arial,sans-serif;color:#0a0a0a;background:#fff;-webkit-font-smoothing:antialiased;line-height:1.5}
+a{color:inherit}
+img{display:block}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:50;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(255,255,255,.88);border-bottom:1px solid #e5e5e5}
+.nav-inner{max-width:1120px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-brand{font-weight:700;font-size:18px;letter-spacing:-.02em;text-decoration:none}
+.nav-links{display:flex;gap:28px;font-size:14px;font-weight:500}
+.nav-links a{text-decoration:none;color:#666;transition:color .2s}
+.nav-links a:hover,.nav-links a.active{color:#006aff}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 24px 80px;max-width:1120px;margin:0 auto}
+.hero-tag{font-size:15px;font-weight:600;color:#006aff;margin-bottom:20px;letter-spacing:.02em}
+.hero h1{font-size:clamp(36px,6vw,72px);font-weight:800;line-height:1.1;letter-spacing:-.03em;max-width:860px}
+.hero-sub{font-size:19px;line-height:1.7;color:#555;max-width:600px;margin-top:32px}
+.hero-btns{display:flex;gap:16px;margin-top:40px;flex-wrap:wrap}
+.btn-primary,.btn-secondary{display:inline-flex;align-items:center;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600;text-decoration:none;border:none;cursor:pointer;transition:opacity .2s}
+.btn-primary{background:#0a0a0a;color:#fff}
+.btn-primary:hover{opacity:.85}
+.btn-secondary{background:transparent;color:#0a0a0a;border:2px solid #d4d4d4}
+.btn-secondary:hover{border-color:#0a0a0a}
+.stats{display:flex;gap:40px;margin-top:72px;flex-wrap:wrap}
+.stat-num{font-size:32px;font-weight:800;letter-spacing:-.02em}
+.stat-label{font-size:14px;color:#888;margin-top:4px}
+
+/* CLIENTS */
+.clients{padding:64px 24px;max-width:1120px;margin:0 auto;border-top:1px solid #ebebeb}
+.clients-title{font-size:13px;font-weight:600;color:#999;text-align:center;margin-bottom:32px;letter-spacing:.08em}
+.clients-grid{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:20px 36px}
+.logo-text{font-weight:800;color:#bbb;letter-spacing:.02em;transition:color .25s;cursor:default;white-space:nowrap;line-height:1}
+.logo-text:hover{color:#666}
+.logo-sm{font-size:16px}
+.logo-md{font-size:20px}
+.logo-lg{font-size:24px}
+
+/* SHARED */
+.section-title{font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-.03em;margin-bottom:16px}
+.section-sub{font-size:17px;line-height:1.7;color:#666;max-width:600px;margin-bottom:64px}
+
+/* ABOUT */
+.about{padding:120px 24px;max-width:1120px;margin:0 auto}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
+.card{padding:32px;border-radius:16px;background:#fafafa;border:1px solid #ebebeb}
+.card-icon{font-size:32px;margin-bottom:16px}
+.card-header{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.card-header h3{font-size:18px;font-weight:700}
+.card-header span{font-size:13px;color:#006aff;font-weight:600}
+.card p{font-size:15px;line-height:1.65;color:#555}
+
+/* EXPERIENCE */
+.experience{padding:120px 24px;background:#0a0a0a;color:#fff}
+.exp-inner{max-width:1120px;margin:0 auto}
+.experience .section-title{margin-bottom:64px}
+.timeline-item{display:grid;grid-template-columns:140px 1fr;gap:32px;padding:32px 0;border-top:1px solid rgba(255,255,255,.12);align-items:start}
+.timeline-period{font-size:14px;font-weight:600;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums}
+.timeline-role{font-size:20px;font-weight:700;margin-bottom:4px}
+.timeline-org{font-size:14px;color:#4d9aff;font-weight:600;margin-bottom:12px}
+.timeline-detail{font-size:15px;line-height:1.65;color:rgba(255,255,255,.6);max-width:560px}
+.longterm{margin-top:48px;padding:28px 32px;border-radius:16px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.04)}
+.longterm-label{font-size:13px;color:#4d9aff;font-weight:600;margin-bottom:8px;letter-spacing:.04em}
+.longterm-role{font-size:20px;font-weight:700;margin-bottom:8px}
+.longterm-detail{font-size:15px;line-height:1.65;color:rgba(255,255,255,.6);max-width:640px}
+.exp-meta{margin-top:64px;display:flex;gap:48px;flex-wrap:wrap}
+.exp-meta-label{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:8px}
+.exp-meta-value{font-size:15px;line-height:1.8}
+
+/* SERVICES */
+.services{padding:120px 24px;max-width:1120px;margin:0 auto}
+.services .section-sub{margin-bottom:20px}
+.services-highlight{font-size:15px;color:#006aff;font-weight:600;margin-bottom:64px}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px}
+.service-card{padding:32px 28px;border-radius:16px;border:1px solid #ebebeb;background:#fafafa;display:flex;flex-direction:column;gap:16px}
+.service-label{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:#006aff}
+.service-problem{font-size:20px;font-weight:800;line-height:1.4;letter-spacing:-.01em}
+.service-pain{font-size:15px;line-height:1.65;color:#666}
+.service-approach{font-size:15px;line-height:1.65;color:#333;padding-left:14px;border-left:3px solid #006aff}
+.service-approach strong{color:#0a0a0a}
+.cases-label{font-size:12px;font-weight:600;color:#999;letter-spacing:.08em;margin-top:4px}
+.cases{display:flex;flex-direction:column;gap:8px}
+.case-card{padding:14px 18px;border-radius:10px;background:#fff;border:1px solid #ebebeb;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.case-info{flex:1;min-width:0}
+.case-task{font-size:15px;font-weight:600}
+.case-time{font-size:13px;color:#888;margin-top:2px}
+.case-tag{padding:4px 10px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.case-tag.speed{background:#f0fdf4;color:#16a34a}
+.case-tag.auto{background:#eef6ff;color:#006aff}
+
+/* PROCESS */
+.process{padding:120px 24px;background:#f7f7f7}
+.process-inner{max-width:1120px;margin:0 auto}
+.process-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:24px;counter-reset:step}
+.step{padding:32px 28px;border-radius:16px;background:#fff;border:1px solid #ebebeb}
+.step-num{font-size:40px;font-weight:800;color:#006aff;letter-spacing:-.03em;line-height:1;margin-bottom:20px}
+.step h3{font-size:18px;font-weight:700;margin-bottom:10px}
+.step p{font-size:15px;line-height:1.65;color:#555}
+
+/* CONTACT */
+.contact{padding:120px 24px;max-width:1120px;margin:0 auto;text-align:center}
+.contact .section-sub{margin:0 auto 40px;max-width:520px}
+.contact-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.btn-contact{display:inline-flex;align-items:center;gap:8px;padding:16px 36px;border-radius:8px;font-size:16px;font-weight:600;text-decoration:none;transition:opacity .2s}
+.btn-contact:hover{opacity:.85}
+.btn-dark{background:#0a0a0a;color:#fff}
+.btn-outline{background:transparent;color:#0a0a0a;border:2px solid #d4d4d4}
+.footer{margin-top:80px;padding-top:40px;border-top:1px solid #e5e5e5;font-size:13px;color:#aaa}
+
+/* MOBILE */
+@media(max-width:640px){
+  .nav-links{gap:14px;font-size:12px}
+  .nav-brand{font-size:16px}
+  .timeline-item{grid-template-columns:1fr;gap:8px}
+  .stats{gap:24px}
+  .services-grid{grid-template-columns:1fr}
+  .hero-sub{font-size:17px}
+}
+</style>
 </head>
-
 <body>
 
-  <!-- NAV -->
-  <nav class="nav">
-    <div class="nav-inner">
-      <a href="#" class="nav-brand">Justin Liao</a>
-      <div class="nav-links">
-        <a href="#services">服務</a>
-        <a href="#about">關於我</a>
-        <a href="#experience">經歷</a>
-        <a href="#process">流程</a>
-        <a href="#contact">聯絡</a>
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">Justin Liao</a>
+    <div class="nav-links">
+      <a href="#services">服務</a>
+      <a href="#about">關於我</a>
+      <a href="#experience">經歷</a>
+      <a href="#process">流程</a>
+      <a href="#contact">聯絡</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <p class="hero-tag">企業 AI 導入顧問 × 投資分析工具開發</p>
+  <h1>把重複的工作交給系統，<br>把時間留給決策。</h1>
+  <p class="hero-sub">15 年產品經理、40+ 企業導入實績。<br>我幫企業與投資人找出最耗時的流程，用 AI 與自動化縮短 50%–97% 的工時。</p>
+  <div class="hero-btns">
+    <a href="mailto:modseventeen@gmail.com" class="btn-primary js-booking">預約 30 分鐘，找出你的省時關鍵</a>
+    <a href="#services" class="btn-secondary">看看你遇到的問題</a>
+  </div>
+  <div class="stats">
+    <div><div class="stat-num">15+</div><div class="stat-label">年產品管理</div></div>
+    <div><div class="stat-num">40+</div><div class="stat-label">公司導入服務</div></div>
+    <div><div class="stat-num">500+</div><div class="stat-label">學員教學</div></div>
+    <div><div class="stat-num">200+</div><div class="stat-label">家公司分析覆蓋</div></div>
+    <div><div class="stat-num">PMP</div><div class="stat-label">國際認證</div></div>
+  </div>
+</section>
+
+<!-- CLIENTS -->
+<section class="clients">
+  <p class="clients-title">成功導入案例</p>
+  <div class="clients-grid">
+    <span class="logo-text logo-lg">廣達</span>
+    <span class="logo-text logo-md">王道銀行</span>
+    <span class="logo-text logo-md">元富證券</span>
+    <span class="logo-text logo-lg">資策會</span>
+    <span class="logo-text logo-md">晶技</span>
+    <span class="logo-text logo-md">強茂</span>
+    <span class="logo-text logo-sm">基隆海科館</span>
+    <span class="logo-text logo-md">飛宏</span>
+    <span class="logo-text logo-md">茂迪</span>
+    <span class="logo-text logo-md">伸興</span>
+    <span class="logo-text logo-md">昇陽科</span>
+    <span class="logo-text logo-md">客委會</span>
+    <span class="logo-text logo-sm">科林</span>
+  </div>
+</section>
+
+<!-- SERVICES (problem-first) -->
+<section class="services" id="services">
+  <h2 class="section-title">你是否也遇到這些問題？</h2>
+  <p class="section-sub">每一項服務都來自真實做過的專案。以下是 14 個實戰案例的實測時間對比。</p>
+  <p class="services-highlight">實測節省 50%–97% 的工作時間，4 項流程實現完全自動化</p>
+  <div class="services-grid">
+
+    <div class="service-card">
+      <div class="service-label">
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none"><rect x="4" y="4" width="32" height="32" rx="8" stroke="#006aff" stroke-width="3"/><path d="M12 26l6-7 5 4 6-9" stroke="#006aff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        AI 投資分析工具開發
+      </div>
+      <h3 class="service-problem">研究一檔股票要花一整天，報告多到看不完？</h3>
+      <p class="service-pain">財報、法說會、券商報告散在各處，每檔都要手動下載、整理、比對。</p>
+      <p class="service-approach"><strong>我怎麼做：</strong>把整理 200+ 家台美股財報與券商報告的時間省下來，讓你全心專注在技術線型與買賣點決策，用資訊與時間差創造獲利優勢。</p>
+      <div class="cases-label">實測成果</div>
+      <div class="cases">
+        <div class="case-card"><div class="case-info"><div class="case-task">分析股票</div><div class="case-time">8 小時/檔 → 1 小時</div></div><span class="case-tag speed">-88%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">查詢股價（30 檔）</div><div class="case-time">30 分鐘 → 1 分鐘</div></div><span class="case-tag speed">-97%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">抓台美股數據</div><div class="case-time">1 分鐘/份 → 建置 3 小時後免人工</div></div><span class="case-tag auto">全自動</span></div>
       </div>
     </div>
-  </nav>
 
-  <!-- HERO -->
-  <section class="hero">
-    <p class="hero-tag">企業 AI 導入顧問 × 投資分析工具開發</p>
-    <h1>把重複的工作交給系統，<br>把時間留給決策。</h1>
-    <p class="hero-sub">15 年產品經理、40+ 企業導入實績。<br>我幫企業與投資人找出最耗時的流程，用 AI 與自動化縮短 50%–97% 的工時。</p>
-    <div class="hero-btns">
-      <a href="mailto:modseventeen@gmail.com" class="btn-primary js-booking">預約免費諮詢</a>
-      <a href="#services" class="btn-secondary">看看你遇到的問題</a>
-    </div>
-    <div class="stats">
-      <div>
-        <div class="stat-num">15+</div>
-        <div class="stat-label">年產品管理</div>
+    <div class="service-card">
+      <div class="service-label">
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15" stroke="#006aff" stroke-width="3"/><path d="M20 11v9l6 5" stroke="#006aff" stroke-width="3" stroke-linecap="round"/></svg>
+        企業 AI 導入顧問
       </div>
-      <div>
-        <div class="stat-num">40+</div>
-        <div class="stat-label">公司導入服務</div>
-      </div>
-      <div>
-        <div class="stat-num">500+</div>
-        <div class="stat-label">學員教學</div>
-      </div>
-      <div>
-        <div class="stat-num">200+</div>
-        <div class="stat-label">家公司分析覆蓋</div>
-      </div>
-      <div>
-        <div class="stat-num">PMP</div>
-        <div class="stat-label">國際認證</div>
+      <h3 class="service-problem">團隊天天被重複作業綁住，想導入 AI 卻不知從哪開始？</h3>
+      <p class="service-pain">發票歸檔、檔案分類吃掉人力；買了 AI 工具，卻淪為高級翻譯機？</p>
+      <p class="service-approach"><strong>我怎麼做：</strong>讓我幫你打造無縫串接工作流程（如 Google Workspace 或專案管理工具）的專屬自動化系統，真正釋放團隊生產力。</p>
+      <div class="cases-label">實測成果</div>
+      <div class="cases">
+        <div class="case-card"><div class="case-info"><div class="case-task">產品設計規格</div><div class="case-time">24 小時 → 1 小時</div></div><span class="case-tag speed">-96%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">發票歸檔</div><div class="case-time">2 分鐘/張 → 建置 30 分鐘後免人工</div></div><span class="case-tag auto">全自動</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">檔案分類移檔</div><div class="case-time">2 分鐘/份 → 建置 3 小時後免人工</div></div><span class="case-tag auto">全自動</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">報告上傳</div><div class="case-time">2 分鐘/份 → 10 秒</div></div><span class="case-tag speed">-92%</span></div>
       </div>
     </div>
-  </section>
 
-  <!-- CLIENTS -->
-  <section class="clients">
-    <p class="clients-title">成功導入案例</p>
-    <div class="clients-grid" id="logo-wall"></div>
-  </section>
-
-  <!-- SERVICES (problem-first) -->
-  <section class="services" id="services">
-    <h2 class="section-title">你是否也遇到這些問題？</h2>
-    <p class="section-sub">每一項服務都來自真實做過的專案。以下是 14 個實戰案例的實測時間對比。</p>
-    <p class="services-highlight">實測節省 50%–97% 的工作時間，4 項流程實現完全自動化</p>
-    <div class="services-grid">
-
-      <div class="service-card">
-        <div class="service-label">
-          <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-            <rect x="4" y="4" width="32" height="32" rx="8" stroke="#006aff" stroke-width="3" />
-            <path d="M12 26l6-7 5 4 6-9" stroke="#006aff" stroke-width="3" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
-          AI 投資分析工具開發
-        </div>
-        <h3 class="service-problem">研究一檔股票要花一整天，報告多到看不完？</h3>
-        <p class="service-pain">財報、法說會、券商報告散在各處，每檔都要手動下載、整理、比對。</p>
-        <p class="service-approach"><strong>我怎麼做：</strong>建置自動下載與 AI 萃取流程，覆蓋台美股 200+ 家公司。</p>
-        <div class="cases-label">實測成果</div>
-        <div class="cases">
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">分析股票</div>
-              <div class="case-time">8 小時/檔 → 1 小時</div>
-            </div><span class="case-tag speed">-88%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">查詢股價（30 檔）</div>
-              <div class="case-time">30 分鐘 → 1 分鐘</div>
-            </div><span class="case-tag speed">-97%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">抓台美股數據</div>
-              <div class="case-time">1 分鐘/份 → 建置 3 小時後免人工</div>
-            </div><span class="case-tag auto">全自動</span>
-          </div>
-        </div>
+    <div class="service-card">
+      <div class="service-label">
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none"><path d="M8 32V12l12-4 12 4v20" stroke="#006aff" stroke-width="3" stroke-linejoin="round"/><path d="M20 8v24" stroke="#006aff" stroke-width="3"/></svg>
+        AI 應用教學
       </div>
-
-      <div class="service-card">
-        <div class="service-label">
-          <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="15" stroke="#006aff" stroke-width="3" />
-            <path d="M20 11v9l6 5" stroke="#006aff" stroke-width="3" stroke-linecap="round" />
-          </svg>
-          企業 AI 導入顧問
-        </div>
-        <h3 class="service-problem">團隊天天被重複作業綁住，想導入 AI 卻不知從哪開始？</h3>
-        <p class="service-pain">發票歸檔、檔案分類、報告上傳吃掉人力；買了 AI 工具，員工卻用不起來。</p>
-        <p class="service-approach"><strong>我怎麼做：</strong>先盤點流程，找出最值得自動化的環節，建置後交付可自行維運的工具。</p>
-        <div class="cases-label">實測成果</div>
-        <div class="cases">
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">產品設計規格</div>
-              <div class="case-time">24 小時 → 1 小時</div>
-            </div><span class="case-tag speed">-96%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">發票歸檔</div>
-              <div class="case-time">2 分鐘/張 → 建置 30 分鐘後免人工</div>
-            </div><span class="case-tag auto">全自動</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">檔案分類移檔</div>
-              <div class="case-time">2 分鐘/份 → 建置 3 小時後免人工</div>
-            </div><span class="case-tag auto">全自動</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">報告上傳</div>
-              <div class="case-time">2 分鐘/份 → 10 秒</div>
-            </div><span class="case-tag speed">-92%</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="service-card">
-        <div class="service-label">
-          <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-            <path d="M8 32V12l12-4 12 4v20" stroke="#006aff" stroke-width="3" stroke-linejoin="round" />
-            <path d="M20 8v24" stroke="#006aff" stroke-width="3" />
-          </svg>
-          AI 應用教學
-        </div>
-        <h3 class="service-problem">員工上過 AI 課，回到座位還是不會用？</h3>
-        <p class="service-pain">課程停在概念介紹，和實際工作對不起來。</p>
-        <p class="service-approach"><strong>我怎麼做：</strong>用學員自己的工作任務當教材，從 Prompt 一路教到 Agent。累計教過 500+ 學員。</p>
-        <div class="cases-label">實測成果</div>
-        <div class="cases">
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">滿意度問卷設計</div>
-              <div class="case-time">30 分鐘 → 5 分鐘</div>
-            </div><span class="case-tag speed">-83%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">線上測驗出題</div>
-              <div class="case-time">60 分鐘 → 10 分鐘</div>
-            </div><span class="case-tag speed">-83%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">商務書信</div>
-              <div class="case-time">30 分鐘 → 10 分鐘</div>
-            </div><span class="case-tag speed">-67%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">YT 影片摘要</div>
-              <div class="case-time">10 分鐘/部 → 5 分鐘</div>
-            </div><span class="case-tag speed">-50%</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="service-card">
-        <div class="service-label">
-          <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
-            <rect x="5" y="9" width="30" height="22" rx="4" stroke="#006aff" stroke-width="3" />
-            <path d="M12 17h16M12 23h9" stroke="#006aff" stroke-width="3" stroke-linecap="round" />
-          </svg>
-          數位產品與營運顧問
-        </div>
-        <h3 class="service-problem">官網、會員、金流要上線，外包報價高、時程一直拖？</h3>
-        <p class="service-pain">多方廠商溝通、需求講不清楚，上線日遙遙無期。</p>
-        <p class="service-approach"><strong>我怎麼做：</strong>用產品經理的角度定規格、整合金流與會員系統，再用 AI 加速開發。曾 1 週內完成官網與 2 套金流串接。</p>
-        <div class="cases-label">實測成果</div>
-        <div class="cases">
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">網站設計開發</div>
-              <div class="case-time">7 天 → 8 小時</div>
-            </div><span class="case-tag speed">-86%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">製作簡報</div>
-              <div class="case-time">3–6 小時 → 1 小時</div>
-            </div><span class="case-tag speed">-83%</span>
-          </div>
-          <div class="case-card">
-            <div class="case-info">
-              <div class="case-task">諮詢發信通知</div>
-              <div class="case-time">5 分鐘/次 → 建置 15 分鐘後免人工</div>
-            </div><span class="case-tag auto">全自動</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ABOUT -->
-  <section class="about" id="about">
-    <h2 class="section-title">四個角色，一條主線。</h2>
-    <p class="section-sub">從管理專案到管理產品，從管理產品到建置系統，從建系統到教別人建系統。每一段經歷都在同一條線上：用最佳化方法解決真實問題。</p>
-    <div class="cards-grid">
-      <div class="card">
-        <div class="card-icon">📐</div>
-        <div class="card-header">
-          <h3>科技業產品經理</h3><span>15 年</span>
-        </div>
-        <p>從專案經理到產品經理，技術到商業的完整過渡。曾任 104 新創單位產品規劃主管，理解平台型產品、用戶成長與 B2B/B2C 商業邏輯。</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">☁️</div>
-        <div class="card-header">
-          <h3>雲端與 SaaS 實踐者</h3><span>跨國經驗</span>
-        </div>
-        <p>外商新創的經歷帶來雲端架構、網路技術、跨國專案管理的實戰經驗，與現在自建的投資分析 SaaS 管道是同一條技術路線的延伸。</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">🤖</div>
-        <div class="card-header">
-          <h3>AI × 投資分析系統建造者</h3><span>創業中</span>
-        </div>
-        <p>不是在用別人的工具，而是在造工具。台美股自動化報告下載系統、Claude Skill、Gemini API 整合——打造最適化工具。</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">🎓</div>
-        <div class="card-header">
-          <h3>教育者與投資社群營運者</h3><span>500+ 學員</span>
-        </div>
-        <p>擁有上市櫃公司導入數位學習、人資管理及滿意度調查多種系統，教導過 500+ 學員，現專職 AI、理財、投資等多種產品服務設計開發，同時是教的人和做的人。</p>
+      <h3 class="service-problem">員工上過 AI 課，回到座位還是不會用？</h3>
+      <p class="service-pain">課程停在概念介紹，和實際工作對不起來。</p>
+      <p class="service-approach"><strong>我怎麼做：</strong>用學員自己真實的工作任務當教材，從基礎 Prompt 寫法一路實戰到專屬 Agent 建置。確保大家上完課，明天回到座位馬上就能用。累計教過 500+ 學員。</p>
+      <div class="cases-label">實測成果</div>
+      <div class="cases">
+        <div class="case-card"><div class="case-info"><div class="case-task">滿意度問卷設計</div><div class="case-time">30 分鐘 → 5 分鐘</div></div><span class="case-tag speed">-83%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">線上測驗出題</div><div class="case-time">60 分鐘 → 10 分鐘</div></div><span class="case-tag speed">-83%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">商務書信</div><div class="case-time">30 分鐘 → 10 分鐘</div></div><span class="case-tag speed">-67%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">YT 影片摘要</div><div class="case-time">10 分鐘/部 → 5 分鐘</div></div><span class="case-tag speed">-50%</span></div>
       </div>
     </div>
-  </section>
 
-  <!-- EXPERIENCE -->
-  <section class="experience" id="experience">
-    <div class="exp-inner">
-      <h2 class="section-title">走過的路。</h2>
-      <div>
-        <div class="timeline-item">
-          <span class="timeline-period">2025–2026</span>
-          <div>
-            <div class="timeline-role">營運長 COO</div>
-            <div class="timeline-org">藏鋒資本</div>
-            <div class="timeline-detail">主導 2 套金流串接，1 週內完成官網建置、200+ 學員管理、金流串接、AI 內訓課程設計、200+ 公司報告自動下載及各項 AI 商業面應用。</div>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <span class="timeline-period">2020–2023</span>
-          <div>
-            <div class="timeline-role">產品經理 Product Manager</div>
-            <div class="timeline-org">外商新創</div>
-            <div class="timeline-detail">雲端 SaaS 產品管理，負責跨國專案、API 規劃、UX 優化，服務歐美企業客戶。</div>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <span class="timeline-period">2015–2020</span>
-          <div>
-            <div class="timeline-role">新創 B 端產品經理 Product Manager</div>
-            <div class="timeline-org">104 人力銀行　20+ 上市櫃公司導入經驗</div>
-            <div class="timeline-detail">負責人資管理系統功能規劃，參與集團高階專案設計與執行。</div>
-          </div>
-        </div>
-        <div class="timeline-item">
-          <span class="timeline-period">2011–2015</span>
-          <div>
-            <div class="timeline-role">專案經理 Project Manager</div>
-            <div class="timeline-org">20+ 上市櫃公司導入經驗</div>
-            <div class="timeline-detail">軟體開發專案管理、系統建置與維運，累積技術實作與團隊協作經驗。</div>
-          </div>
-        </div>
+    <div class="service-card">
+      <div class="service-label">
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none"><rect x="5" y="9" width="30" height="22" rx="4" stroke="#006aff" stroke-width="3"/><path d="M12 17h16M12 23h9" stroke="#006aff" stroke-width="3" stroke-linecap="round"/></svg>
+        數位產品與營運顧問
       </div>
-
-      <div class="longterm">
-        <div class="longterm-label">長期投入・2011 起</div>
-        <div class="longterm-role">專業理財及投資人</div>
-        <div class="longterm-detail">建立個人理財系統，並開發各種 AI 及自動化工具，以獨立投資人與理財顧問身份運作。</div>
+      <h3 class="service-problem">官網、會員、金流要上線，外包報價高、時程一直拖？</h3>
+      <p class="service-pain">多方廠商溝通、需求講不清楚，上線日遙遙無期。</p>
+      <p class="service-approach"><strong>我怎麼做：</strong>用產品經理的角度定規格、整合金流與會員系統，再用 AI 加速開發。曾 1 週內完成官網與 2 套金流串接。</p>
+      <div class="cases-label">實測成果</div>
+      <div class="cases">
+        <div class="case-card"><div class="case-info"><div class="case-task">網站設計開發</div><div class="case-time">7 天 → 8 小時</div></div><span class="case-tag speed">-86%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">製作簡報</div><div class="case-time">3–6 小時 → 1 小時</div></div><span class="case-tag speed">-83%</span></div>
+        <div class="case-card"><div class="case-info"><div class="case-task">諮詢發信通知</div><div class="case-time">5 分鐘/次 → 建置 15 分鐘後免人工</div></div><span class="case-tag auto">全自動</span></div>
       </div>
+    </div>
 
-      <div class="exp-meta">
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about" id="about">
+  <h2 class="section-title">四個角色，一條主線。</h2>
+  <p class="section-sub">從管理專案到管理產品，從管理產品到建置系統，從建系統到教別人建系統。每一段經歷都在同一條線上：用最佳化方法解決真實問題。</p>
+  <div class="cards-grid">
+    <div class="card">
+      <div class="card-icon">📐</div>
+      <div class="card-header"><h3>科技業產品經理</h3><span>15 年</span></div>
+      <p>從專案經理到產品經理，技術到商業的完整過渡。曾任 104 新創單位產品規劃主管，理解平台型產品、用戶成長與 B2B/B2C 商業邏輯。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">☁️</div>
+      <div class="card-header"><h3>雲端與 SaaS 實踐者</h3><span>跨國經驗</span></div>
+      <p>外商新創的經歷帶來雲端架構、網路技術、跨國專案管理的實戰經驗，與現在自建的投資分析 SaaS 管道是同一條技術路線的延伸。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🤖</div>
+      <div class="card-header"><h3>AI × 投資分析系統建造者</h3><span>創業中</span></div>
+      <p>不是在用別人的工具，而是在造工具。台美股自動化報告下載系統、Claude Skill、Gemini API 整合——打造最適化工具。</p>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎓</div>
+      <div class="card-header"><h3>教育者與投資社群營運者</h3><span>500+ 學員</span></div>
+      <p>擁有上市櫃公司導入數位學習、人資管理及滿意度調查多種系統，教導過 500+ 學員，現專職 AI、理財、投資等多種產品服務設計開發，同時是教的人和做的人。</p>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section class="experience" id="experience">
+  <div class="exp-inner">
+    <h2 class="section-title">走過的路。</h2>
+    <div>
+      <div class="timeline-item">
+        <span class="timeline-period">2025–2026</span>
         <div>
-          <div class="exp-meta-label">學歷</div>
-          <div class="exp-meta-value">國立中正大學<br>南臺科技大學<br>文藻外語學院</div>
+          <div class="timeline-role">營運長 COO</div>
+          <div class="timeline-org">藏鋒資本</div>
+          <div class="timeline-detail">主導 2 套金流串接，1 週內完成官網建置、200+ 學員管理、金流串接、AI 內訓課程設計、200+ 公司報告自動下載及各項 AI 商業面應用。</div>
         </div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-period">2020–2023</span>
         <div>
-          <div class="exp-meta-label">證照</div>
-          <div class="exp-meta-value">PMP 國際專案管理師<br>乙級就業服務師</div>
+          <div class="timeline-role">產品經理 Product Manager</div>
+          <div class="timeline-org">外商新創</div>
+          <div class="timeline-detail">雲端 SaaS 產品管理，負責跨國專案、API 規劃、UX 優化，服務歐美企業客戶。</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-period">2015–2020</span>
+        <div>
+          <div class="timeline-role">新創 B 端產品經理 Product Manager</div>
+          <div class="timeline-org">104 人力銀行　20+ 上市櫃公司導入經驗</div>
+          <div class="timeline-detail">負責人資管理系統功能規劃，參與集團高階專案設計與執行。</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <span class="timeline-period">2011–2015</span>
+        <div>
+          <div class="timeline-role">專案經理 Project Manager</div>
+          <div class="timeline-org">20+ 上市櫃公司導入經驗</div>
+          <div class="timeline-detail">軟體開發專案管理、系統建置與維運，累積技術實作與團隊協作經驗。</div>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- PROCESS -->
-  <section class="process" id="process">
-    <div class="process-inner">
-      <h2 class="section-title">合作怎麼進行。</h2>
-      <p class="section-sub">從第一次對話到團隊能自己用，四個步驟。</p>
-      <div class="process-grid">
-        <div class="step">
-          <div class="step-num">01</div>
-          <h3>免費諮詢 30 分鐘</h3>
-          <p>了解你的工作流程與目標，先判斷 AI 能不能真的幫上忙。</p>
-        </div>
-        <div class="step">
-          <div class="step-num">02</div>
-          <h3>流程盤點</h3>
-          <p>拆解現有作業，找出最耗時、最值得自動化的環節，提出方案與預估效益。</p>
-        </div>
-        <div class="step">
-          <div class="step-num">03</div>
-          <h3>建置交付</h3>
-          <p>開發工具或自動化流程，用你的實際資料測試，確認真的省下時間。</p>
-        </div>
-        <div class="step">
-          <div class="step-num">04</div>
-          <h3>教會團隊</h3>
-          <p>交付操作說明與教學，讓團隊能自行維運，不必長期依賴顧問。</p>
-        </div>
+    <div class="longterm">
+      <div class="longterm-label">長期投入・2011 起</div>
+      <div class="longterm-role">專業理財及投資人</div>
+      <div class="longterm-detail">建立個人理財系統，並開發各種 AI 及自動化工具，以獨立投資人與理財顧問身份運作。</div>
+    </div>
+
+    <div class="exp-meta">
+      <div>
+        <div class="exp-meta-label">學歷</div>
+        <div class="exp-meta-value">國立中正大學<br>南臺科技大學<br>文藻外語學院</div>
+      </div>
+      <div>
+        <div class="exp-meta-label">證照</div>
+        <div class="exp-meta-value">PMP 國際專案管理師<br>乙級就業服務師</div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- CONTACT -->
-  <section class="contact" id="contact">
-    <h2 class="section-title">有想法？聊聊。</h2>
-    <p class="section-sub">直接選一個方便的時段，預約 30 分鐘免費諮詢。想先用文字說明需求，也歡迎來信。</p>
-    <div class="contact-btns">
-      <a href="mailto:modseventeen@gmail.com" class="btn-contact btn-dark js-booking">預約 30 分鐘免費諮詢</a>
-      <a href="mailto:modseventeen@gmail.com" class="btn-contact btn-outline">寫信給我</a>
-      <a href="https://www.linkedin.com/in/jun-jia-liao-6b7b0a190/" target="_blank" rel="noopener"
-        class="btn-contact btn-outline">LinkedIn</a>
+<!-- PROCESS -->
+<section class="process" id="process">
+  <div class="process-inner">
+    <h2 class="section-title">合作怎麼進行。</h2>
+    <p class="section-sub">從第一次對話到團隊能自己用，四個步驟。</p>
+    <div class="process-grid">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>免費諮詢 30 分鐘</h3>
+        <p>了解你的工作流程與目標，先判斷 AI 能不能真的幫上忙。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>流程盤點</h3>
+        <p>拆解現有作業，找出最耗時、最值得自動化的環節，提出方案與預估效益。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>建置交付</h3>
+        <p>開發工具或自動化流程，用你的實際資料測試，確認真的省下時間。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>教會團隊</h3>
+        <p>交付操作說明與教學，讓團隊能自行維運，不必長期依賴顧問。</p>
+      </div>
     </div>
-    <div class="footer">© 2026 Justin Liao. Built with intention.</div>
-  </section>
+  </div>
+</section>
 
-  <script>
-    // ===== 預約連結：把 Google 日曆預約頁網址貼在引號中 =====
-    const BOOKING_URL = "https://calendar.app.google/kWjUtPnAGX2obx8c6";
-    // ==========================================================
+<!-- CONTACT -->
+<section class="contact" id="contact">
+  <h2 class="section-title">有想法？聊聊。</h2>
+  <p class="section-sub">請帶著你團隊目前最耗時的那份報表，或是最想自動化的繁瑣流程來，我們在 30 分鐘內一起找出最佳化解法。</p>
+  <div class="contact-btns">
+    <a href="mailto:modseventeen@gmail.com" class="btn-contact btn-dark js-booking">預約 30 分鐘免費諮詢</a>
+    <a href="mailto:modseventeen@gmail.com" class="btn-contact btn-outline">寫信給我</a>
+    <a href="https://www.linkedin.com/in/jun-jia-liao-6b7b0a190/" target="_blank" rel="noopener" class="btn-contact btn-outline">LinkedIn</a>
+  </div>
+  <p style="font-size:14px;color:#006aff;font-weight:600;margin-top:20px">預約即可獲得專屬流程盤點建議</p>
+  <div class="footer">© 2026 Justin Liao. Built with intention.</div>
+</section>
 
-    if (BOOKING_URL) {
-      document.querySelectorAll(".js-booking").forEach(a => {
-        a.href = BOOKING_URL;
-        a.target = "_blank";
-        a.rel = "noopener";
-      });
+<script>
+// ===== 預約連結：把 Google 日曆預約頁網址貼在引號中 =====
+const BOOKING_URL = "";
+// ==========================================================
+
+if (BOOKING_URL) {
+  document.querySelectorAll(".js-booking").forEach(a => {
+    a.href = BOOKING_URL;
+    a.target = "_blank";
+    a.rel = "noopener";
+  });
+}
+
+// Logo wall: pure CSS text, no external dependencies
+
+// Nav active state
+const links = document.querySelectorAll(".nav-links a");
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id));
     }
-
-    // Logo wall
-    const companies = [
-      { name: "廣達", domain: "quantatw.com" },
-      { name: "晶技", domain: "txc.com.tw" },
-      { name: "伸興", domain: "zenghsing.com.tw" },
-      { name: "強茂", domain: "panjit.com.tw" },
-      { name: "昇陽科", domain: "solartech-energy.com" },
-      { name: "王道銀行", domain: "o-bank.com" },
-      { name: "元富證券", domain: "masterlink.com.tw" },
-      { name: "客委會", domain: "hakka.gov.tw" },
-      { name: "基隆海科館", domain: "nmmst.gov.tw" },
-      { name: "資策會", domain: "iii.org.tw" },
-      { name: "科林", domain: "ear.com.tw" },
-    ];
-    const wall = document.getElementById("logo-wall");
-    companies.forEach(c => {
-      const wrap = document.createElement("div");
-      wrap.className = "logo-item";
-      const img = document.createElement("img");
-      img.src = "https://logo.clearbit.com/" + c.domain;
-      img.alt = c.name;
-      img.onerror = function () {
-        this.remove();
-        const fb = document.createElement("span");
-        fb.className = "logo-fallback";
-        fb.textContent = c.name;
-        wrap.insertBefore(fb, wrap.firstChild);
-      };
-      const label = document.createElement("span");
-      label.className = "logo-name";
-      label.textContent = c.name;
-      wrap.appendChild(img);
-      wrap.appendChild(label);
-      wall.appendChild(wrap);
-    });
-
-    // Nav active state
-    const links = document.querySelectorAll(".nav-links a");
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id));
-        }
-      });
-    }, { threshold: 0.3 });
-    ["services", "about", "experience", "process", "contact"].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-  </script>
+  });
+}, { threshold: 0.3 });
+["services","about","experience","process","contact"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) observer.observe(el);
+});
+</script>
 </body>
-
 </html>
