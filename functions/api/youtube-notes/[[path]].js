@@ -7,6 +7,7 @@
  * 選填：
  *   NOTION_DATA_SOURCE_ID   預設為「YouTube 筆記（雲端）」的 data source
  *   PREFERRED_PLAN          同一支影片有多份筆記時優先顯示的方案，預設 Vertex
+ *   ALLOWED_HOSTS           允許的網域（逗號分隔），預設 modseventeen.com、www 與本機
  *   NOTION_API_BASE         只給本機測試用，正式環境不要設
  */
 
@@ -31,6 +32,14 @@ const DONE_STATUS = "完成";
 
 export async function onRequestGet(context) {
   const { env, params, request } = context;
+
+  // 只回應正式網域：*.pages.dev 不在 Cloudflare Access 保護範圍內，直接拒絕，避免繞過登入
+  const host = new URL(request.url).hostname;
+  const allowed = (env.ALLOWED_HOSTS || "modseventeen.com,www.modseventeen.com,localhost,127.0.0.1")
+    .split(",")
+    .map((s) => s.trim());
+  if (!allowed.includes(host)) return json({ error: "請從 modseventeen.com 開啟" }, 403);
+
   if (!env.NOTION_TOKEN) return json({ error: "伺服器沒有設定 NOTION_TOKEN" }, 500);
 
   const seg = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
