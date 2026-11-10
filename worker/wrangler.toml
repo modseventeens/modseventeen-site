@@ -1,0 +1,25 @@
+# 排程抓資料的 Worker（和網站 Pages 專案分開部署）
+name = "modseventeen-mops"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# 時間是 UTC（台灣 = UTC+8）
+[triggers]
+crons = [
+  "*/10 * * * *",     # 每 10 分鐘：即時重大訊息 + 名單公司內文（程式內判斷台灣 07–24 點才跑）
+  "5-59/10 * * * *",  # 每 10 分鐘（錯開 5 分）：最新公告
+  "40 14 * * *",      # 台灣 22:40：當日重大訊息補抓、設質解質、事前申報、名單同步、清理
+  "0 12 * * *",       # 台灣 20:00：月報（持股異動、大額取得／轉讓、質押比例）
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "modseventeen-mops"
+database_id = "e13fc950-9849-4771-9a4f-dca17cb05ab7"
+
+# 以下兩個請在 Cloudflare 後台設成 Secret（不要寫在這裡，這個檔案會被網站公開）：
+#   WATCHLIST_CSV_URL  Google Sheet「發佈到網路」的 CSV 網址
+#   RUN_KEY            手動執行 /run 用的密碼
+
+[observability]
+enabled = true

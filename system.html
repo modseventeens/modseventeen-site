@@ -101,6 +101,45 @@ details.fullnote[open]>summary::before{content:"▾ ";}
 .note .c-purple_background{background:#f3e8fd}.note .c-pink_background{background:#fde8f1}.note .c-brown_background{background:#f4eeee}
 body.lock{overflow:hidden}
 
+/* 公開資訊觀測站 */
+.subtabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.subtab{padding:7px 14px;border-radius:999px;border:1px solid var(--line);font-size:14px;font-weight:600;color:#333}
+.subtab:hover{border-color:var(--accent);color:var(--accent)}
+.subtab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:12px 14px;background:var(--soft);border-radius:12px;margin-bottom:12px;font-size:14px}
+.toolbar label{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.toolbar [hidden]{display:none !important}
+.toolbar select,.toolbar input{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.toolbar input[type=search]{width:150px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{padding:5px 12px;font-size:14px;color:#333}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.daynav{display:inline-flex;align-items:center;gap:4px}
+.daynav button{width:28px;height:30px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.mops-note{font-size:13px;color:var(--muted);margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:space-between}
+.mops-note .warn{color:#b26a00}
+table.grid{width:100%;border-collapse:collapse;font-size:14px}
+.grid th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.grid td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.grid td.n,.grid th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.grid td.nw{white-space:nowrap}
+.grid tr.click{cursor:pointer}
+.grid tr.click:hover td{background:#f7faff}
+.co b{font-variant-numeric:tabular-nums;margin-right:4px}
+.mk{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:4px}
+.grid .cat{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#0050c0;white-space:nowrap}
+.grid .up{color:#c62828}.grid .down{color:#2e7d32}
+.grid .subj{line-height:1.5}
+.section-title{font-size:16px;font-weight:700;margin:26px 0 8px}
+.section-title small{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:16px}
+.detail dt{color:var(--muted)}
+.detail .text{white-space:pre-wrap;font-size:15px;line-height:1.8;background:var(--soft);border-radius:12px;padding:16px 18px}
+@media (max-width:720px){
+  .grid .hide-sm{display:none}
+  .toolbar input[type=search]{width:120px}
+}
+
 @media (max-width:720px){
   main{padding:28px 16px 64px}
   h1{font-size:26px}
@@ -132,7 +171,27 @@ body.lock{overflow:hidden}
   </div>
 
   <section class="panel" id="panel-mops" role="tabpanel" aria-labelledby="tab-mops" hidden>
-    <div class="placeholder">公開資訊觀測站資料建置中</div>
+    <div class="subtabs" id="mops-subtabs">
+      <button class="subtab" data-sub="material">重大訊息</button>
+      <button class="subtab" data-sub="latest">最新公告</button>
+      <button class="subtab" data-sub="pretransfer">內部人轉讓申報</button>
+      <button class="subtab" data-sub="insiders">內部人持股異動</button>
+      <button class="subtab" data-sub="pledges">設質解質</button>
+    </div>
+    <div class="toolbar" id="mops-toolbar">
+      <span class="seg" id="mops-scope">
+        <button data-scope="watch">觀察名單</button><button data-scope="all">全部公司</button>
+      </span>
+      <label>市場 <select id="mops-market"><option value="">全部</option><option value="sii">上市</option><option value="otc">上櫃</option></select></label>
+      <label data-for="day">類型 <select id="mops-category"><option value="">全部</option></select></label>
+      <span class="daynav" data-for="day"><button id="mops-prev" aria-label="前一天">‹</button><input type="date" id="mops-date"><button id="mops-next" aria-label="後一天">›</button></span>
+      <label data-for="month">月份 <input type="month" id="mops-month"></label>
+      <label data-for="ym">資料月份 <select id="mops-ym"></select></label>
+      <label>搜尋 <input type="search" id="mops-q" placeholder="股號或名稱"></label>
+    </div>
+    <div class="mops-note" id="mops-note"></div>
+    <div id="mops-content"><div class="state">載入中…</div></div>
+    <nav class="pager" id="mops-pager" aria-label="分頁"></nav>
   </section>
 
   <section class="panel" id="panel-youtube" role="tabpanel" aria-labelledby="tab-youtube" hidden>
@@ -162,7 +221,7 @@ body.lock{overflow:hidden}
 <script>
 (function () {
   var PAGE_SIZE = 10;
-  var DEFAULT_TAB = "youtube"; // 另外兩個頁簽有內容後，可改成 "mops"
+  var DEFAULT_TAB = "mops";
   var API = "/api/youtube-notes";
 
   var items = [];
@@ -179,7 +238,9 @@ body.lock{overflow:hidden}
 
   /* ---------- 頁簽（網址 #mops / #youtube / #reports） ---------- */
   var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
-  function showTab(name) {
+  function showTab(hash) {
+    var parts = String(hash || "").split("/");
+    var name = parts[0];
     if (!document.getElementById("panel-" + name)) name = DEFAULT_TAB;
     tabs.forEach(function (t) {
       var on = t.dataset.tab === name;
@@ -187,6 +248,7 @@ body.lock{overflow:hidden}
       document.getElementById("panel-" + t.dataset.tab).hidden = !on;
     });
     if (name === "youtube" && !loaded) loadList();
+    if (name === "mops") mopsShow(parts[1]);
   }
   tabs.forEach(function (t) {
     t.addEventListener("click", function () {
@@ -194,7 +256,7 @@ body.lock{overflow:hidden}
       showTab(t.dataset.tab);
     });
   });
-  window.addEventListener("hashchange", function () { showTab(location.hash.slice(1)); });
+  window.addEventListener("hashchange", function () { showTab(decodeURIComponent(location.hash.slice(1))); });
 
   /* ---------- 列表 ---------- */
   function loadList() {
@@ -348,7 +410,284 @@ body.lock{overflow:hidden}
     $("m-video").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
-  showTab(location.hash.slice(1) || DEFAULT_TAB);
+  /* ======================================================================
+     公開資訊觀測站
+     ====================================================================== */
+  var M_API = "/system/api/mops";
+  var M_PAGE = 20;
+  var SUBS = {
+    material: { label: "重大訊息", filter: "day", job: "realtime" },
+    latest: { label: "最新公告", filter: "day", job: "latest" },
+    pretransfer: { label: "內部人轉讓申報", filter: "month", job: "pretransfer" },
+    insiders: { label: "內部人持股異動", filter: "ym", job: "monthly" },
+    pledges: { label: "設質解質", filter: "month", job: "pledges" },
+  };
+  var MK = { sii: "上市", otc: "上櫃" };
+  var ms = { sub: "material", scope: null, market: "", category: "", dates: {}, month: "", ym: "", q: "", page: 1, meta: null, data: null, key: "" };
+
+  function twToday() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
+  function getJSON(url) {
+    return fetch(url).then(function (r) {
+      return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || d.error || r.status); return d; });
+    });
+  }
+  function lots(n) {
+    n = +n || 0;
+    return (n / 1000).toLocaleString("zh-TW", { maximumFractionDigits: 3 });
+  }
+  function co(r) {
+    return '<span class="co"><b>' + esc(r.company_id) + '</b>' + esc(r.company_name || "") +
+      (r.market ? '<span class="mk">' + (MK[r.market] || esc(r.market)) + '</span>' : "") + '</span>';
+  }
+  function fmtTime(iso) {
+    if (!iso) return "";
+    var d = new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString();
+    return d.slice(5, 10).replace("-", "/") + " " + d.slice(11, 16);
+  }
+
+  function mopsShow(sub) {
+    if (sub && SUBS[sub]) ms.sub = sub;
+    if (!ms.meta) {
+      $("mops-content").innerHTML = '<div class="state">載入中…</div>';
+      getJSON(M_API + "/meta").then(function (m) {
+        ms.meta = m;
+        if (!ms.scope) ms.scope = m.watchCount > 0 ? "watch" : "all";
+        ms.month = twToday().slice(0, 7);
+        $("mops-month").value = ms.month;
+        $("mops-ym").innerHTML = (m.insiderMonths || []).map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join("") || '<option value="">尚無資料</option>';
+        ms.ym = (m.insiderMonths || [])[0] || "";
+        mopsShow();
+      }).catch(function (e) {
+        $("mops-content").innerHTML = '<div class="state error">讀取失敗：' + esc(e.message) + '</div>';
+      });
+      return;
+    }
+    [].forEach.call(document.querySelectorAll("#mops-subtabs .subtab"), function (b) { b.setAttribute("aria-pressed", b.dataset.sub === ms.sub); });
+    [].forEach.call(document.querySelectorAll("#mops-scope button"), function (b) {
+      b.setAttribute("aria-pressed", b.dataset.scope === ms.scope);
+      if (b.dataset.scope === "watch") b.textContent = "觀察名單（" + ms.meta.watchCount + "）";
+    });
+    var f = SUBS[ms.sub].filter;
+    if (f === "day") $("mops-date").value = ms.dates[ms.sub] || "";
+    [].forEach.call(document.querySelectorAll("#mops-toolbar [data-for]"), function (el) { el.hidden = el.dataset.for !== f; });
+    mopsLoad();
+  }
+
+  function mopsUrl() {
+    var p = new URLSearchParams({ scope: ms.scope });
+    if (ms.q) p.set("q", ms.q);
+    var s = ms.sub;
+    if (s === "material" || s === "latest") { p.set("kind", s); if (ms.dates[s]) p.set("date", ms.dates[s]); return M_API + "/announcements?" + p; }
+    if (s === "pretransfer") { p.set("month", ms.month); return M_API + "/pretransfers?" + p; }
+    if (s === "pledges") { p.set("month", ms.month); return M_API + "/pledges?" + p; }
+    if (ms.ym) p.set("ym", ms.ym);
+    return M_API + "/insiders?" + p;
+  }
+
+  function mopsLoad() {
+    var url = mopsUrl();
+    if (url === ms.key && ms.data) { mopsRender(); return; }
+    ms.key = url;
+    $("mops-content").innerHTML = '<div class="state">載入中…</div>';
+    $("mops-pager").innerHTML = "";
+    getJSON(url).then(function (d) {
+      if (url !== ms.key) return;
+      ms.data = d;
+      if ((ms.sub === "material" || ms.sub === "latest") && d.date && !ms.q) { ms.dates[ms.sub] = d.date; $("mops-date").value = d.date; }
+      if (ms.sub === "insiders" && d.ym) { ms.ym = d.ym; $("mops-ym").value = d.ym; }
+      mopsRender();
+    }).catch(function (e) {
+      if (url !== ms.key) return;
+      ms.key = "";
+      $("mops-content").innerHTML = '<div class="state error">讀取失敗：' + esc(e.message) + '</div>';
+    });
+  }
+
+  function byMarket(list) { return ms.market ? list.filter(function (r) { return r.market === ms.market; }) : list; }
+
+  function mopsNote(extra) {
+    var m = ms.meta, job = m.updated && m.updated[SUBS[ms.sub].job];
+    var left = (ms.scope === "watch" ? "觀察名單 " + m.watchCount + " 家" : "全部公司（上市＋上櫃）") + (extra ? "｜" + extra : "");
+    if (ms.scope === "watch" && !m.watchCount) left = '<span class="warn">觀察名單還是空的，請先在 Google Sheet 加入股號</span>';
+    var right = job ? (job.ok ? "最後更新 " + fmtTime(job.at) : '<span class="warn">上次更新失敗（' + fmtTime(job.at) + '）：' + esc(job.error || "") + '</span>') : "尚未更新";
+    $("mops-note").innerHTML = "<span>" + left + "</span><span>" + right + "</span>";
+  }
+
+  function slicePage(list) {
+    var pages = Math.max(1, Math.ceil(list.length / M_PAGE));
+    if (ms.page > pages) ms.page = pages;
+    mopsPager(pages);
+    return list.slice((ms.page - 1) * M_PAGE, ms.page * M_PAGE);
+  }
+  function mopsPager(pages) {
+    if (pages <= 1) { $("mops-pager").innerHTML = ""; return; }
+    var p = ms.page, nums = [];
+    for (var i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || Math.abs(i - p) <= 1) nums.push(i);
+      else if (nums[nums.length - 1] !== "…") nums.push("…");
+    }
+    var h = '<button data-p="' + (p - 1) + '"' + (p === 1 ? " disabled" : "") + '>上一頁</button>';
+    nums.forEach(function (n) {
+      h += n === "…" ? '<span class="gap">…</span>' : '<button data-p="' + n + '"' + (n === p ? ' aria-current="page"' : "") + '>' + n + '</button>';
+    });
+    h += '<button data-p="' + (p + 1) + '"' + (p === pages ? " disabled" : "") + '>下一頁</button>';
+    $("mops-pager").innerHTML = h;
+  }
+  function table(head, rows, empty) {
+    if (!rows.length) return '<div class="state">' + (empty || "沒有資料") + '</div>';
+    return '<table class="grid"><thead><tr>' + head + '</tr></thead><tbody>' + rows.join("") + '</tbody></table>';
+  }
+
+  function mopsRender() {
+    var d = ms.data, s = ms.sub, html = "";
+    if (s === "material" || s === "latest") {
+      var all = byMarket(d.items || []);
+      // 類型選單：依目前資料統計
+      var counts = {};
+      all.forEach(function (r) { counts[r.category] = (counts[r.category] || 0) + 1; });
+      var cats = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+      if (ms.category && !counts[ms.category]) ms.category = "";
+      $("mops-category").innerHTML = '<option value="">全部（' + all.length + '）</option>' +
+        cats.map(function (c) { return '<option value="' + esc(c) + '"' + (c === ms.category ? " selected" : "") + '>' + esc(c) + '（' + counts[c] + '）</option>'; }).join("");
+      var list = ms.category ? all.filter(function (r) { return r.category === ms.category; }) : all;
+      mopsNote(ms.q ? "搜尋「" + esc(ms.q) + "」，近 180 天" : (d.date ? "資料日期 " + d.date : "") + "｜共 " + list.length + " 則");
+      var showDate = !!ms.q;
+      html = table(
+        (showDate ? "<th>日期</th>" : "") + "<th>時間</th><th>公司</th><th class=\"hide-sm\">類型</th><th>主旨</th>",
+        slicePage(list).map(function (r) {
+          return '<tr class="click" data-rid="' + r.rid + '" data-url="' + esc(r.url || "") + '">' +
+            (showDate ? '<td class="nw">' + esc(r.date) + "</td>" : "") +
+            '<td class="nw">' + esc(String(r.time || "").slice(0, 5)) + '</td><td class="nw">' + co(r) + '</td>' +
+            '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td></tr>';
+        }),
+        ms.q ? "找不到這家公司的資料" : "這一天沒有資料"
+      );
+    } else if (s === "pretransfer") {
+      var pt = byMarket(d.items || []);
+      mopsNote(ms.month + " 申報｜共 " + pt.length + " 筆｜事前申報是「預定」轉讓，不代表已經賣出");
+      html = table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th>方式</th><th class="n">預定轉讓（張）</th><th class="n hide-sm">轉讓後持股（張）</th><th class="hide-sm">有效期間</th>',
+        slicePage(pt).map(function (r) {
+          return '<tr><td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
+            '</td><td>' + esc(r.method) + (r.transferee ? '<br><small style="color:var(--muted)">' + esc(r.transferee) + '</small>' : "") + '</td><td class="n">' + lots(r.shares) +
+            '</td><td class="n hide-sm">' + lots(r.after) + '</td><td class="nw hide-sm">' + esc(r.period) + '</td></tr>';
+        }), "這個月沒有申報");
+    } else if (s === "pledges") {
+      var ev = byMarket(d.items || []);
+      var rt = byMarket((d.ratio && d.ratio.items) || []);
+      mopsNote(ms.month + " 申報｜設質解質 " + ev.length + " 筆");
+      html = '<div class="section-title">設質解質逐筆<small>內部人每次設定或解除質押的公告</small></div>' +
+        table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th class="n">設質（張）</th><th class="n">解質（張）</th><th class="n hide-sm">累積設質（張）</th><th class="hide-sm">質權人</th>',
+          slicePage(ev).map(function (r) {
+            return '<tr><td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
+              '</td><td class="n up">' + (r.pledged ? lots(r.pledged) : "") + '</td><td class="n down">' + (r.released ? lots(r.released) : "") +
+              '</td><td class="n hide-sm">' + lots(r.accumulated) + '</td><td class="hide-sm">' + esc(r.pledgee) + '</td></tr>';
+          }), "這個月沒有設質解質公告") +
+        '<div class="section-title">董監質押比例' + (d.ratio && d.ratio.ym ? '<small>' + d.ratio.ym + ' 月報' + (ms.scope === "all" && !ms.q ? "，只列 50% 以上" : "") + '</small>' : "") + '</div>' +
+        table('<th>公司</th><th class="n">設質股數占董監持股</th>', rt.map(function (r) {
+          return '<tr><td class="nw">' + co(r) + '</td><td class="n' + (r.ratio >= 50 ? " up" : "") + '">' + r.ratio.toFixed(2) + '%</td></tr>';
+        }), "沒有董監設質的公司");
+    } else {
+      var ch = byMarket(d.changes || []);
+      var lg = byMarket(d.large || []);
+      var acq = lg.filter(function (r) { return r.direction === "acquire"; });
+      var tra = lg.filter(function (r) { return r.direction === "transfer"; });
+      mopsNote(d.ym ? d.ym + " 月報（次月 15–20 日公布）" : "月報尚未抓到");
+      var largeRow = function (r) {
+        return '<tr><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) + '</td><td class="n">' + lots(r.shares) + '</td></tr>';
+      };
+      var lhead = '<th>公司</th><th>身分</th><th>姓名</th><th class="n">股數（張）</th>';
+      html = '<div class="section-title">大額取得<small>單人取得 100 萬股以上</small></div>' + table(lhead, acq.map(largeRow), "沒有") +
+        '<div class="section-title">大額轉讓<small>單人轉讓 100 萬股以上</small></div>' + table(lhead, tra.map(largeRow), "沒有") +
+        '<div class="section-title">董監持股增減<small>依淨增加排序，共 ' + ch.length + ' 家</small></div>' +
+        table('<th>公司</th><th class="n">董監增加（張）</th><th class="n">董監減少（張）</th><th class="n">董監持股比例</th><th class="n hide-sm">經理人持股（張）</th>',
+          slicePage(ch).map(function (r) {
+            return '<tr><td class="nw">' + co(r) + '</td><td class="n up">' + (r.ds_increase ? lots(r.ds_increase) : "") + '</td><td class="n down">' +
+              (r.ds_decrease ? lots(r.ds_decrease) : "") + '</td><td class="n">' + (+r.ds_pct).toFixed(2) + '%</td><td class="n hide-sm">' + lots(r.mgr_holding) + '</td></tr>';
+          }), "這個月沒有董監持股變動");
+    }
+    $("mops-content").innerHTML = html;
+  }
+
+  function openMopsDetail(rid) {
+    lastFocus = document.activeElement;
+    currentId = "mops:" + rid;
+    var myId = currentId;
+    $("m-title").textContent = "載入中…";
+    $("m-meta").innerHTML = "";
+    $("m-video").innerHTML = "";
+    $("m-video").hidden = true;
+    $("m-body").innerHTML = '<div class="state">讀取內文…（名單外的公司第一次打開要幾秒）</div>';
+    overlay.hidden = false;
+    document.body.classList.add("lock");
+    overlay.scrollTop = 0;
+    $("m-close").focus();
+    getJSON(M_API + "/announcements/" + rid).then(function (r) {
+      if (currentId !== myId) return;
+      $("m-title").textContent = r.subject;
+      $("m-meta").innerHTML = "<span>" + esc(r.date) + " " + esc(String(r.time || "").slice(0, 5)) + "</span>" + co(r) +
+        '<span class="chip">' + esc(r.category) + '</span>';
+      var dl = [];
+      if (r.speaker) dl.push("<dt>發言人</dt><dd>" + esc(r.speaker) + "</dd>");
+      if (r.clause) dl.push("<dt>符合條款</dt><dd>第 " + esc(r.clause) + " 款</dd>");
+      if (r.fact_date) dl.push("<dt>事實發生日</dt><dd>" + esc(r.fact_date) + "</dd>");
+      $("m-body").innerHTML = '<div class="detail">' + (dl.length ? "<dl>" + dl.join("") + "</dl>" : "") +
+        '<div class="text">' + esc(r.detail || "（沒有說明內容）") + '</div></div>';
+    }).catch(function (e) {
+      if (currentId !== myId) return;
+      $("m-title").textContent = "讀取失敗";
+      $("m-body").innerHTML = '<div class="state error">' + esc(e.message) + '</div>';
+    });
+  }
+
+  /* ---------- 觀測站：事件 ---------- */
+  $("mops-subtabs").addEventListener("click", function (e) {
+    var b = e.target.closest(".subtab");
+    if (!b) return;
+    ms.page = 1; ms.category = "";
+    history.replaceState(null, "", "#mops/" + b.dataset.sub);
+    mopsShow(b.dataset.sub);
+  });
+  $("mops-scope").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-scope]");
+    if (!b || b.dataset.scope === ms.scope) return;
+    ms.scope = b.dataset.scope; ms.page = 1;
+    mopsShow();
+  });
+  $("mops-market").addEventListener("change", function () { ms.market = this.value; ms.page = 1; ms.data && mopsRender(); });
+  $("mops-category").addEventListener("change", function () { ms.category = this.value; ms.page = 1; mopsRender(); });
+  $("mops-date").addEventListener("change", function () { ms.dates[ms.sub] = this.value; ms.page = 1; mopsLoad(); });
+  $("mops-month").addEventListener("change", function () { if (this.value) { ms.month = this.value; ms.page = 1; mopsLoad(); } });
+  $("mops-ym").addEventListener("change", function () { ms.ym = this.value; ms.page = 1; mopsLoad(); });
+  function shiftDay(n) {
+    var d = new Date((ms.dates[ms.sub] || twToday()) + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    ms.dates[ms.sub] = d.toISOString().slice(0, 10); ms.page = 1;
+    $("mops-date").value = ms.dates[ms.sub];
+    mopsLoad();
+  }
+  $("mops-prev").addEventListener("click", function () { shiftDay(-1); });
+  $("mops-next").addEventListener("click", function () { shiftDay(1); });
+  $("mops-q").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    ms.q = this.value.trim(); ms.page = 1;
+    mopsLoad();
+  });
+  $("mops-q").addEventListener("search", function () { if (!this.value && ms.q) { ms.q = ""; ms.page = 1; mopsLoad(); } });
+  $("mops-pager").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-p]");
+    if (!b || b.disabled) return;
+    ms.page = +b.dataset.p;
+    mopsRender();
+    $("panel-mops").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("mops-content").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr.click");
+    if (!tr) return;
+    if (ms.sub === "material") openMopsDetail(tr.dataset.rid);
+    else if (tr.dataset.url) window.open(tr.dataset.url, "_blank", "noopener");
+  });
+
+  showTab(decodeURIComponent(location.hash.slice(1)) || DEFAULT_TAB);
 })();
 </script>
 </body>
