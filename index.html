@@ -17,9 +17,16 @@
 <meta name="twitter:description" content="把重複的工作交給系統，把時間留給決策。15 年產品經理、40+ 企業導入實績。" />
 <meta name="twitter:image" content="https://modseventeen.com/og-image.jpg" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
-<!-- Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-JF0MCJYPZ1"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-JF0MCJYPZ1');</script>
+<!-- Google Analytics：只在正式網域 modseventeen.com 送資料，預覽環境不送 -->
+<script>
+window.dataLayer=window.dataLayer||[];
+if(/(^|\.)modseventeen\.com$/.test(location.hostname)){
+  var gs=document.createElement('script');gs.async=true;gs.src='https://www.googletagmanager.com/gtag/js?id=G-JF0MCJYPZ1';document.head.appendChild(gs);
+  window.gtag=function(){dataLayer.push(arguments);};gtag('js',new Date());gtag('config','G-JF0MCJYPZ1');
+}else{
+  window.gtag=function(){console.log('[GA 預覽環境不送出]',arguments);};
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;scroll-padding-top:64px}
@@ -158,6 +165,83 @@ img{display:block}
 .btn-outline{background:transparent;color:#0a0a0a;border:2px solid #d4d4d4}
 .footer{margin-top:80px;padding-top:40px;border-top:1px solid #e5e5e5;font-size:13px;color:#aaa}
 
+/* HERO OFFER */
+.hero-offer{display:inline-block;line-height:1.5;margin-top:20px;padding:8px 14px;border-radius:999px;background:#eef6ff;color:#004fc4;font-size:14px;font-weight:600}
+.hero-offer b{font-weight:800}
+.hero-link{display:inline-block;margin-top:18px;font-size:15px;font-weight:600;color:#006aff;text-decoration:none}
+.hero-link:hover{text-decoration:underline}
+
+/* CALCULATOR */
+.calc{padding:96px 24px;background:#f7f7f7}
+.calc-inner{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.calc-form{background:#fff;border:1px solid #ebebeb;border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:24px}
+.calc-field label{display:flex;justify-content:space-between;font-size:15px;font-weight:600;margin-bottom:10px}
+.calc-field label span{color:#006aff;font-weight:800}
+.calc-field input[type=range]{width:100%;accent-color:#006aff}
+.calc-field input[type=number]{width:100%;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit}
+.calc-hint{font-size:12px;color:#999;margin-top:6px}
+.calc-result{background:#0a0a0a;color:#fff;border-radius:20px;padding:36px}
+.calc-result-label{font-size:13px;color:rgba(255,255,255,.55);font-weight:600;letter-spacing:.04em}
+.calc-big{font-size:clamp(36px,5vw,52px);font-weight:800;letter-spacing:-.03em;margin:8px 0 4px}
+.calc-big small{font-size:18px;font-weight:600;color:rgba(255,255,255,.6);margin-left:6px}
+.calc-money{font-size:17px;color:#4d9aff;font-weight:700}
+.calc-roi{margin-top:20px;padding-top:20px;border-top:1px solid rgba(255,255,255,.15);font-size:15px;line-height:1.7;color:rgba(255,255,255,.8)}
+.calc-roi b{color:#fff}
+.calc-note{font-size:12px;color:rgba(255,255,255,.45);margin-top:12px;line-height:1.6}
+.calc-btns{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.btn-light{display:inline-flex;align-items:center;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;background:#fff;color:#0a0a0a}
+.btn-ghost-light{display:inline-flex;align-items:center;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+
+/* OFFERS */
+.offers{padding:120px 24px;max-width:1120px;margin:0 auto}
+.offers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}
+.offer{position:relative;padding:28px 24px;border-radius:16px;border:1px solid #ebebeb;background:#fafafa;display:flex;flex-direction:column;gap:12px}
+.offer.featured{background:#fff;border:2px solid #006aff;box-shadow:0 12px 32px rgba(0,106,255,.12)}
+.offer-badge{position:absolute;top:-12px;left:24px;background:#006aff;color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.offer h3{font-size:18px;font-weight:800}
+.offer-price{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.offer-price small{font-size:13px;font-weight:600;color:#888;margin-left:4px}
+.offer-price.quote{font-size:18px;color:#555}
+.offer ul{list-style:none;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.55;color:#555;flex:1}
+.offer li{padding-left:20px;position:relative}
+.offer li::before{content:"✓";position:absolute;left:0;color:#006aff;font-weight:800}
+.offer .offer-cta{display:block;text-align:center;padding:12px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;border:1.5px solid #0a0a0a;color:#0a0a0a;margin-top:8px}
+.offer.featured .offer-cta{background:#0a0a0a;color:#fff}
+.offers-note{margin-top:28px;font-size:14px;color:#777;line-height:1.7}
+
+/* NOTES */
+.notes{padding:120px 24px;max-width:1120px;margin:0 auto}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px}
+.note-card{padding:26px 24px;border-radius:16px;border:1px solid #ebebeb;background:#fff;display:flex;flex-direction:column;gap:10px}
+.note-meta{font-size:12px;font-weight:700;color:#006aff;letter-spacing:.04em}
+.note-card h3{font-size:18px;font-weight:800;line-height:1.4}
+.note-row{font-size:14px;line-height:1.65;color:#555}
+.note-row b{color:#0a0a0a}
+.note-result{margin-top:4px;padding:10px 12px;border-radius:10px;background:#f0fdf4;color:#15803d;font-size:14px;font-weight:700;line-height:1.5}
+.subscribe{margin-top:40px;padding:32px;border-radius:20px;background:#0a0a0a;color:#fff;display:grid;grid-template-columns:1fr 1.2fr;gap:24px;align-items:center}
+.subscribe h3{font-size:22px;font-weight:800;margin-bottom:6px}
+.subscribe p{font-size:14px;color:rgba(255,255,255,.65);line-height:1.6}
+.subscribe-form{display:flex;gap:10px;flex-wrap:wrap}
+.subscribe-form input{flex:1;min-width:140px;border:none;border-radius:10px;padding:12px 14px;font-size:15px;font-family:inherit}
+.subscribe-form button{border:none;border-radius:10px;padding:12px 20px;background:#006aff;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+.subscribe-msg{font-size:13px;margin-top:10px;color:#4d9aff;min-height:18px}
+.subscribe-legal{font-size:12px;color:rgba(255,255,255,.45);margin-top:6px}
+
+/* FAQ */
+.faq{padding:120px 24px;background:#f7f7f7}
+.faq-inner{max-width:820px;margin:0 auto}
+.faq details{background:#fff;border:1px solid #ebebeb;border-radius:14px;padding:0 22px;margin-bottom:12px}
+.faq summary{cursor:pointer;list-style:none;padding:20px 28px 20px 0;font-size:16px;font-weight:700;position:relative}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";position:absolute;right:0;top:16px;font-size:22px;color:#006aff;font-weight:600}
+.faq details[open] summary::after{content:"−"}
+.faq details p{font-size:15px;line-height:1.75;color:#555;padding-bottom:20px}
+
+@media(max-width:768px){
+  .calc-inner,.subscribe{grid-template-columns:1fr}
+  .nav-links .nav-hide-sm{display:none}
+}
+
 /* MOBILE */
 @media(max-width:640px){
   .nav-links{gap:14px;font-size:12px}
@@ -178,10 +262,11 @@ img{display:block}
   <div class="nav-inner">
     <a href="#" class="nav-brand">Justin Liao</a>
     <div class="nav-links">
+      <a href="#offers">方案</a>
       <a href="#services">服務</a>
-      <a href="#about">關於我</a>
-      <a href="#experience">經歷</a>
-      <a href="#process">流程</a>
+      <a href="#notes">實戰筆記</a>
+      <a href="#faq" class="nav-hide-sm">常見問題</a>
+      <a href="#about" class="nav-hide-sm">關於我</a>
       <a href="#contact">聯絡</a>
     </div>
   </div>
@@ -194,15 +279,17 @@ img{display:block}
       <p class="hero-tag">企業 AI 導入顧問 × 投資分析工具開發</p>
       <h1>把重複的工作交給系統，<br>把時間留給決策。</h1>
       <p class="hero-sub">15 年產品經理、40+ 企業導入實績。<br>幫企業與投資人找出費時的流程，用自動化 AI 縮短 50%–97% 的工時。</p>
+      <div class="hero-offer">AI 流程健檢 <b>NT$3,000</b>｜費用可全額折抵後續建置</div>
     </div>
     <div class="hero-photo-wrap">
       <img class="hero-photo" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGiEcFxgfGRQUHScdHyIjJSUlFhwpLCgkKyEkJST/2wBDAQYGBgkICREJCREkGBQYJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCT/wAARCAHQAlgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCU0UpFFaEhSikFOHFABTsUYpRQAfSilpcUAJilApQKMUAIOtO7mj2pelACUuKKUcCgAA4oxRzTqAExS45oo5zQAYowaUClFACAUtGDS4oASilFLQAlFLQeaAExiilxS4oASjFLijBoAMUYpaKAExxS4pe+KKAExim47040AUAJRTsUhoASjrS4pcc0ANxmlHWgDmlxQA3FJjk0/FJigBtGKXHWjHFACdKMUtFADaWlpCOaAEIpBTsUYzQA3FFLRQA2kIp+KQ/SgBlFKRRjNADTx9aKdjFGKAGUh96dikxnvQA2kpxWkOaAGmkxTsUEUAMxikIp+KQjvQAym4qQikIoAjwaTFSY9aaRQAwim4p5FJigY0CinbaKQEpHNIRzTj60UxCAUo60YpRQAtLSCnYoAMUtFAFAC4opaXFADcZpQM0opaAExS4opQKADGaXFGMUtACYxS0YoxQADmlAoxS0AGKKKKADrSijFGBQACjFLjFHagANHWlIPY0YoASilI5pccUAJijHNLijFAAB7UhHFOoxQA3FL04pcUYoAQdKMUuKKAExRTsUUANxS4pcZooAaR2oIp2MUlAxuKMcU6kNAhKKXNJQAhpMU7FGKAEopSKTFACY9qQinUUDG0mKdSYoENxRS59KMUANNGKdj3pKAGkCkxTiKSgBuOKTHanEUlADcYpMU80nagBuKbinfhQRQAwikpxFJQA002nkU00ANNNp9IaAG0UuM0UDJsUmO9OIpMUCE/ClFGKBQACnCjFLigBaWilxz1oAMUo68UlLzQAYopaMUAFOFAFFAB2paOtLjNACUClxQBQAClxRilxmgANGMUtGOaADFGKWlxQAgHFGKXpRigBKKWgCgA60YpcUUAFFLR17UAJxmilxQKAE9qMd6XFGKACkwRTqOtAxKPwpcYo6igQlGKXFGKAEppHvT+lIaAG4oI4p3ag4oAbikIp2KMUANxS0uKMUANIPtRinUY5oAbimnNPIpNtADMUYp+KCOKAGUU7FBFAEZBoxT+1IRmgBuKbinkUhFADcU3FSUmKAGYpMU7FJigBpFJ1p2MUmKAGkU0inkZ60mKAGHpTSOakptADCKTGKeR6U0igBAKKWigCUikxTz0plABRRSigAFOHFApaAAYp1JS9aAAUoFApRQAAGlApKf2FACUY4paOTQAYope1AFABilxQOtOFACAUAClFLQAmKXFHtS0AIBR3pcUtADaWlooAKMUuKMYoATFL2ooxQAlLzSjrS0ANxRjNO/Cg9aAEFApccUY7YoAQ0VR1PXtL0ZN9/ewwD0Zufy61gR/FPws92bdr5kHaVozsP49f0ouB12BRjFU7XWtMvUD22oWkqnoVlBzV1SCM8c/rQAhFIRxTqOooAZjvRTvaigBtGKdRQA3FGKdikNADTRinfhQRQA3FFOxSUAJikpcGlxQA3rSYp1FADSKQ04ijFADdtNxT6PwoAYQKTrTzTTQAmKTt0pcZoNADCKMCn000AMIptSU0gdqAG0lONJigBh6U2nnFIRQAwikwRT8YpDQA32opw6UUDJMU00/FNIoEN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" alt="Justin Liao" />
     </div>
   </div>
   <div class="hero-btns">
-    <a href="mailto:modseventeen@gmail.com" class="btn-primary js-booking">預約 30 分鐘，找出你的省時關鍵</a>
-    <a href="#services" class="btn-secondary">看看你遇到的問題</a>
+    <a href="#offers" class="btn-primary js-book-paid" data-src="首屏">預約 AI 流程健檢</a>
+    <a href="#offers" class="btn-secondary js-book-free" data-src="首屏">先免費聊 15 分鐘</a>
   </div>
+  <a href="#calc" class="hero-link">60 秒試算你每月能省多少時間 ↓</a>
   <div class="stats">
     <div><div class="stat-num">15+</div><div class="stat-label">年產品管理</div></div>
     <div><div class="stat-num">40+</div><div class="stat-label">公司導入服務</div></div>
@@ -229,6 +316,39 @@ img{display:block}
     <span class="logo-text logo-md">昇陽科</span>
     <span class="logo-text logo-md">客委會</span>
     <span class="logo-text logo-sm">科林</span>
+  </div>
+</section>
+
+<!-- CALCULATOR -->
+<section class="calc" id="calc">
+  <div class="calc-inner">
+    <div>
+      <h2 class="section-title">60 秒試算：你每月能省下多少時間？</h2>
+      <p class="section-sub" style="margin-bottom:24px">拉動兩個數字，馬上看到重複作業交給系統後，團隊每個月能拿回多少時間與人力成本。</p>
+      <div class="calc-form">
+        <div class="calc-field">
+          <label for="calc-hours">團隊每週合計花在重複作業的時間 <span id="calc-hours-v">10 小時</span></label>
+          <input type="range" id="calc-hours" min="1" max="80" step="1" value="10" />
+          <div class="calc-hint">例如：資料整理、報表、歸檔、回覆制式信件、查資料</div>
+        </div>
+        <div class="calc-field">
+          <label for="calc-wage">平均時薪（新台幣）</label>
+          <input type="number" id="calc-wage" min="100" max="5000" step="50" value="300" />
+          <div class="calc-hint">可依你的團隊自行調整</div>
+        </div>
+      </div>
+    </div>
+    <div class="calc-result">
+      <div class="calc-result-label">每月可省下</div>
+      <div class="calc-big" id="calc-saved">22–36<small>小時</small></div>
+      <div class="calc-money" id="calc-money">約等於 NT$6,450–10,710 的人力成本</div>
+      <div class="calc-roi" id="calc-roi">AI 流程健檢 <b>NT$3,000</b>，大約省下 <b>10 小時</b>就回本，而且費用可全額折抵後續建置。</div>
+      <div class="calc-note">以 14 個實測案例的下限 50% 與常見值 83% 估算，實際成效依流程而定。</div>
+      <div class="calc-btns">
+        <a href="#offers" class="btn-light js-book-paid" data-src="試算">預約 AI 流程健檢</a>
+        <a href="#offers" class="btn-ghost-light js-book-free" data-src="試算">先免費聊 15 分鐘</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -310,6 +430,149 @@ img{display:block}
       </div>
     </div>
 
+  </div>
+</section>
+
+<!-- OFFERS -->
+<section class="offers" id="offers">
+  <h2 class="section-title">從一次健檢開始。</h2>
+  <p class="section-sub">不確定 AI 能不能幫上忙？先用最小的成本確認，再決定要不要往下做。</p>
+  <div class="offers-grid">
+    <div class="offer">
+      <h3>15 分鐘適配確認</h3>
+      <div class="offer-price">免費</div>
+      <ul>
+        <li>線上 15 分鐘</li>
+        <li>聽你說明狀況，確認 AI 能不能真的解決</li>
+        <li>適合還在評估、想先問問看的人</li>
+      </ul>
+      <a href="#contact" class="offer-cta js-book-free" data-src="方案">預約 15 分鐘</a>
+    </div>
+    <div class="offer featured">
+      <span class="offer-badge">建議從這裡開始</span>
+      <h3>AI 流程健檢</h3>
+      <div class="offer-price">NT$3,000<small>／次</small></div>
+      <ul>
+        <li>60–90 分鐘線上會議，逐步拆解你的現有作業</li>
+        <li>交付書面「自動化機會清單」：優先順序與預估省時</li>
+        <li>清單歸你，自己做、交給團隊或找我都可以</li>
+        <li><b>費用可全額折抵後續建置</b></li>
+      </ul>
+      <a href="#contact" class="offer-cta js-book-paid" data-src="方案">預約 AI 流程健檢</a>
+    </div>
+    <div class="offer">
+      <h3>流程自動化建置</h3>
+      <div class="offer-price quote">健檢後報價</div>
+      <ul>
+        <li>固定範圍，單一流程約 2–3 週交付</li>
+        <li>用你的實際資料測試，確認真的省下時間</li>
+        <li>交付操作說明，教會團隊自行維運</li>
+      </ul>
+      <a href="#contact" class="offer-cta js-book-paid" data-src="方案-建置">先做健檢</a>
+    </div>
+    <div class="offer">
+      <h3>企業 AI 實戰內訓</h3>
+      <div class="offer-price quote">依人數與時數報價</div>
+      <ul>
+        <li>半天或一天，實體或線上</li>
+        <li>用學員自己的工作任務當教材</li>
+        <li>上完課，明天回到座位馬上就能用</li>
+      </ul>
+      <a href="#contact" class="offer-cta js-book-free" data-src="方案-內訓">聊聊內訓需求</a>
+    </div>
+  </div>
+  <p class="offers-note">付款方式：會後以轉帳付款，並開立發票。投資分析工具的客製需求，歡迎先預約 15 分鐘聊聊。</p>
+</section>
+
+<!-- PROCESS -->
+<section class="process" id="process">
+  <div class="process-inner">
+    <h2 class="section-title">合作怎麼進行。</h2>
+    <p class="section-sub">從第一次對話到團隊能自己用，四個步驟。</p>
+    <div class="process-grid">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>免費 15 分鐘確認</h3>
+        <p>聽你說明狀況，先判斷 AI 能不能真的幫上忙。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>AI 流程健檢</h3>
+        <p>NT$3,000。拆解現有作業，交付書面自動化機會清單與預估效益；費用可全額折抵建置。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>建置交付</h3>
+        <p>開發工具或自動化流程，用你的實際資料測試，確認真的省下時間。</p>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>教會團隊</h3>
+        <p>交付操作說明與教學，讓團隊能自行維運，不必長期依賴顧問。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NOTES -->
+<section class="notes" id="notes">
+  <h2 class="section-title">AI 實戰筆記。</h2>
+  <p class="section-sub">每週一則，從真實案子改寫、拿去就能用的 AI 自動化案例。</p>
+  <div class="notes-grid" id="notes-grid"></div>
+  <div class="subscribe">
+    <div>
+      <h3>每週一則，寄到你的信箱</h3>
+      <p>不用追蹤社群，每週收到一個可以直接套用的 AI 做法。</p>
+    </div>
+    <div>
+      <form class="subscribe-form" id="subscribe-form">
+        <input type="text" id="sub-name" placeholder="怎麼稱呼你（選填）" maxlength="40" />
+        <input type="email" id="sub-email" placeholder="you@example.com" required maxlength="120" />
+        <button type="submit">免費訂閱</button>
+      </form>
+      <div class="subscribe-msg" id="subscribe-msg"></div>
+      <div class="subscribe-legal">Email 僅用於寄送筆記，隨時可回信取消訂閱。</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="faq-inner">
+    <h2 class="section-title">常見問題。</h2>
+    <p class="section-sub" style="margin-bottom:40px">如果這裡沒有你的問題，直接預約 15 分鐘問我。</p>
+    <details>
+      <summary>我不懂技術，也能合作嗎？</summary>
+      <p>可以。你只要說明工作怎麼做、卡在哪裡，技術的部分由我處理；交付時附上操作說明，並教到你和團隊會用為止。</p>
+    </details>
+    <details>
+      <summary>健檢之後，一定要找你做建置嗎？</summary>
+      <p>不用。自動化機會清單是你的，可以自己做、交給內部團隊，或再找我。如果後續找我建置，NT$3,000 健檢費全額折抵。</p>
+    </details>
+    <details>
+      <summary>建置大概多少錢？</summary>
+      <p>依流程數量與複雜度而定。健檢後會提供固定範圍的報價，先講清楚交付內容與時程，再決定要不要進行。</p>
+    </details>
+    <details>
+      <summary>多久能看到效果？</summary>
+      <p>單一流程的建置通常 2–3 週交付，上線後就開始省時間。教學類的需求，上完課當週就能用在工作上。</p>
+    </details>
+    <details>
+      <summary>公司資料交給你安全嗎？</summary>
+      <p>建置以你自己的 Google Workspace 或雲端帳號為主，資料留在你的環境裡，我只使用完成工作所需的最少權限。需要的話，可以先簽保密協議。</p>
+    </details>
+    <details>
+      <summary>線上還是到場？</summary>
+      <p>適配確認與健檢以線上會議進行；企業內訓可以實體或線上。</p>
+    </details>
+    <details>
+      <summary>怎麼付款？</summary>
+      <p>會後以轉帳付款，並開立發票。</p>
+    </details>
+    <details>
+      <summary>適合多大的公司？</summary>
+      <p>從個人工作者到上市櫃企業都合作過。只要團隊有每週重複發生的作業，就值得檢視一次。</p>
+    </details>
   </div>
 </section>
 
@@ -419,46 +682,17 @@ img{display:block}
   </div>
 </section>
 
-<!-- PROCESS -->
-<section class="process" id="process">
-  <div class="process-inner">
-    <h2 class="section-title">合作怎麼進行。</h2>
-    <p class="section-sub">從第一次對話到團隊能自己用，四個步驟。</p>
-    <div class="process-grid">
-      <div class="step">
-        <div class="step-num">01</div>
-        <h3>免費諮詢 30 分鐘</h3>
-        <p>了解你的工作流程與目標，先判斷 AI 能不能真的幫上忙。</p>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <h3>流程盤點</h3>
-        <p>拆解現有作業，找出最耗時、最值得自動化的環節，提出方案與預估效益。</p>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <h3>建置交付</h3>
-        <p>開發工具或自動化流程，用你的實際資料測試，確認真的省下時間。</p>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <h3>教會團隊</h3>
-        <p>交付操作說明與教學，讓團隊能自行維運，不必長期依賴顧問。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- CONTACT -->
 <section class="contact" id="contact">
   <h2 class="section-title">有想法？聊聊。</h2>
-  <p class="section-sub">請帶著你團隊目前最耗時的那份報表，或是最想自動化的繁瑣流程來，我們在 30 分鐘內一起找出最佳化解法。</p>
+  <p class="section-sub">帶著你團隊目前最耗時的那份報表，或最想自動化的繁瑣流程來，15 分鐘內確認 AI 能不能幫上忙。</p>
   <div class="contact-btns">
-    <a href="mailto:modseventeen@gmail.com" class="btn-contact btn-dark js-booking">預約 30 分鐘免費諮詢</a>
+    <a href="#offers" class="btn-contact btn-dark js-book-paid" data-src="聯絡區">預約 AI 流程健檢</a>
+    <a href="#offers" class="btn-contact btn-outline js-book-free" data-src="聯絡區">先免費聊 15 分鐘</a>
     <a href="https://mail.google.com/mail/?view=cm&fs=1&to=modseventeen@gmail.com&su=%E8%AB%AE%E8%A9%A2%E5%90%88%E4%BD%9C" target="_blank" rel="noopener" class="btn-contact btn-outline">寫信給我</a>
     <a href="https://www.linkedin.com/in/jun-jia-liao-6b7b0a190/" target="_blank" rel="noopener" class="btn-contact btn-outline">LinkedIn</a>
   </div>
-  <p style="font-size:14px;color:#006aff;font-weight:600;margin-top:20px">預約即可獲得專屬流程盤點建議</p>
+  <p style="font-size:14px;color:#006aff;font-weight:600;margin-top:20px">AI 流程健檢 NT$3,000，費用可全額折抵後續建置</p>
   <!-- SHARE & QR & VCARD -->
   <div style="margin-top:60px;display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
     <a href="https://social-plugins.line.me/lineit/share?url=https%3A%2F%2Fmodseventeen.com" target="_blank" rel="noopener" class="btn-contact btn-outline" style="font-size:14px;padding:12px 24px">
@@ -484,33 +718,568 @@ img{display:block}
 </section>
 
 <script>
-// ===== 預約連結：把 Google 日曆預約頁網址貼在引號中 =====
-const BOOKING_URL = "";
-// ==========================================================
+// ================== 網站設定：只需要改這三行 ==================
+const SITE_CONFIG = {
+  BOOKING_PAID_URL: "https://calendar.app.google/1qLYyqLUVWeni2n97",  // Google 日曆「AI 流程健檢」預約頁網址
+  BOOKING_FREE_URL: "https://calendar.app.google/1qLYyqLUVWeni2n97",  // Google 日曆「15 分鐘適配確認」預約頁網址
+  API_ENDPOINT: "https://script.google.com/macros/s/AKfycbx3QDvA59oeDaNJyabQDGwTAWrHSMW21GKA-TZ1mMRfgx9bj1LvjoNFqcqRzFsxjmKiNA/exec"       // Apps Script 網頁應用程式網址（.../exec）
+};
+// =============================================================
 
-if (BOOKING_URL) {
-  document.querySelectorAll(".js-booking").forEach(a => {
-    a.href = BOOKING_URL;
-    a.target = "_blank";
-    a.rel = "noopener";
+const IS_PROD = /(^|\.)modseventeen\.com$/.test(location.hostname);
+
+function bookingUrl(paid) {
+  const url = paid ? SITE_CONFIG.BOOKING_PAID_URL : SITE_CONFIG.BOOKING_FREE_URL;
+  if (url) return url;
+  const subject = paid ? "預約 AI 流程健檢（NT$3,000）" : "預約 15 分鐘適配確認";
+  return "https://mail.google.com/mail/?view=cm&fs=1&to=modseventeen@gmail.com&su=" + encodeURIComponent(subject);
+}
+function openBooking(paid, src) {
+  try { gtag("event", paid ? "book_paid_click" : "book_free_click", { source: src || "" }); } catch (e) {}
+  window.open(bookingUrl(paid), "_blank", "noopener");
+}
+document.querySelectorAll(".js-book-paid, .js-book-free").forEach(function (a) {
+  const paid = a.classList.contains("js-book-paid");
+  a.href = bookingUrl(paid);
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.addEventListener("click", function () {
+    try { gtag("event", paid ? "book_paid_click" : "book_free_click", { source: a.dataset.src || "" }); } catch (e) {}
   });
+});
+
+function postApi(payload) {
+  if (!SITE_CONFIG.API_ENDPOINT) return Promise.resolve(false);
+  payload.env = location.hostname;
+  return fetch(SITE_CONFIG.API_ENDPOINT, {
+    method: "POST", mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  }).then(function () { return true; }).catch(function () { return false; });
 }
 
-// Logo wall: pure CSS text, no external dependencies
+// ---------- 60 秒試算 ----------
+(function () {
+  const h = document.getElementById("calc-hours"), w = document.getElementById("calc-wage");
+  if (!h || !w) return;
+  const fmt = function (n) { return Math.round(n).toLocaleString("en-US"); };
+  let tracked = false;
+  function update(e) {
+    const hours = Number(h.value) || 0;
+    const wage = Math.max(0, Number(w.value) || 0);
+    const monthly = hours * 4.3;
+    const low = monthly * 0.5, high = monthly * 0.83;
+    document.getElementById("calc-hours-v").textContent = hours + " 小時";
+    document.getElementById("calc-saved").innerHTML = fmt(low) + "–" + fmt(high) + "<small>小時</small>";
+    document.getElementById("calc-money").textContent = "約等於 NT$" + fmt(low * wage) + "–" + fmt(high * wage) + " 的人力成本";
+    const payback = wage ? Math.ceil(3000 / wage) : 0;
+    document.getElementById("calc-roi").innerHTML = "AI 流程健檢 <b>NT$3,000</b>，大約省下 <b>" + payback + " 小時</b>就回本，而且費用可全額折抵後續建置。";
+    if (e && !tracked) { tracked = true; try { gtag("event", "calc_use"); } catch (x) {} }
+  }
+  h.addEventListener("input", update);
+  w.addEventListener("input", update);
+  update();
+})();
 
-// Nav active state
-const links = document.querySelectorAll(".nav-links a");
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(e => {
-    if (e.isIntersecting) {
-      links.forEach(l => l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id));
-    }
+// ---------- AI 實戰筆記：優先讀試算表，讀不到就用內建內容 ----------
+(function () {
+  const grid = document.getElementById("notes-grid");
+  if (!grid) return;
+  const FALLBACK = [
+    { no: 3, tag: "自動化", title: "發票不用再一張張手動歸檔", pain: "每張發票都要手動輸入資料、歸檔，一張約 2 分鐘；張數一多，整個下午就沒了。", how: "請 Gemini 寫一段 Google Apps Script，自動讀取發票資料、寫進試算表並歸檔到對應資料夾。", result: "建置只花 30 分鐘（一次性），之後每張 0 分鐘，全自動。" },
+    { no: 2, tag: "AI 教學", title: "60 分鐘的線上測驗，10 分鐘出完題", pain: "命題、設計選項、整理答案卷，一份測驗至少 60 分鐘。", how: "把教材丟進 NotebookLM，再請 Gemini 依教材內容出題。NotebookLM 只根據你提供的資料出題，不會憑空亂編。", result: "60 分鐘 → 10 分鐘，省下 83%。" },
+    { no: 1, tag: "辦公效率", title: "滿意度問卷 5 分鐘做完", pain: "設計題目、建立表單、整理格式，一份問卷約 30 分鐘。", how: "在 Google 表單裡描述問卷目的，讓內建的 Gemini 直接生成題目，微調後就能發送。", result: "30 分鐘 → 5 分鐘，省下 83%。" }
+  ];
+  function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+  function render(list) {
+    grid.innerHTML = list.slice(0, 6).map(function (n) {
+      return '<article class="note-card">' +
+        '<div class="note-meta">No.' + esc(n.no) + (n.tag ? "・" + esc(n.tag) : "") + (n.date ? "・" + esc(n.date) : "") + '</div>' +
+        '<h3>' + esc(n.title) + '</h3>' +
+        '<div class="note-row"><b>痛點</b>　' + esc(n.pain) + '</div>' +
+        '<div class="note-row"><b>做法</b>　' + esc(n.how) + '</div>' +
+        '<div class="note-result">' + esc(n.result) + '</div>' +
+      '</article>';
+    }).join("");
+  }
+  render(FALLBACK);
+  if (SITE_CONFIG.API_ENDPOINT) {
+    fetch(SITE_CONFIG.API_ENDPOINT + "?type=notes")
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.ok && d.notes && d.notes.length) render(d.notes); })
+      .catch(function () {});
+  }
+})();
+
+// ---------- 電子報訂閱 ----------
+(function () {
+  const form = document.getElementById("subscribe-form");
+  if (!form) return;
+  const msg = document.getElementById("subscribe-msg");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const email = document.getElementById("sub-email").value.trim();
+    const name = document.getElementById("sub-name").value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = "Email 格式好像不太對，再確認一下？"; return; }
+    msg.textContent = "送出中…";
+    postApi({ type: "subscribe", email: email, nickname: name, source: "網站訂閱區" }).then(function (ok) {
+      if (!SITE_CONFIG.API_ENDPOINT) { msg.textContent = "（測試模式：尚未連接後端，資料未送出）"; return; }
+      msg.textContent = ok ? "訂閱完成！歡迎信已寄到你的信箱 📬" : "送出失敗，請稍後再試，或直接寄信給我。";
+      if (ok) { form.reset(); try { gtag("event", "newsletter_subscribe", { source: "section" }); } catch (x) {} }
+    });
   });
-}, { threshold: 0.3 });
-["services","about","experience","process","contact"].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) observer.observe(el);
-});
+})();
+
+// ---------- 導覽列：目前所在區塊 ----------
+(function () {
+  const links = document.querySelectorAll(".nav-links a");
+  const observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle("active", l.getAttribute("href") === "#" + e.target.id); });
+    });
+  }, { threshold: 0.3 });
+  ["offers", "services", "notes", "faq", "about", "contact"].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+})();
 </script>
+
+
+<!-- ===== CHATBOT ===== -->
+<style>
+.cb-launch{position:fixed;right:24px;bottom:24px;z-index:90;width:60px;height:60px;border-radius:50%;border:none;background:#0a0a0a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:transform .2s}
+.cb-launch:hover{transform:scale(1.06)}
+.cb-launch .cb-dot{position:absolute;top:4px;right:4px;width:12px;height:12px;border-radius:50%;background:#006aff;border:2px solid #fff}
+.cb-teaser{position:fixed;right:96px;bottom:34px;z-index:90;background:#fff;border:1px solid #e5e5e5;border-radius:14px;padding:12px 36px 12px 16px;font-size:14px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.12);cursor:pointer;display:none;max-width:240px}
+.cb-teaser-x{position:absolute;top:6px;right:8px;border:none;background:none;color:#aaa;font-size:16px;cursor:pointer;line-height:1}
+.cb-panel{position:fixed;right:24px;bottom:96px;z-index:95;width:370px;height:560px;max-height:calc(100vh - 120px);background:#fff;border-radius:20px;border:1px solid #e5e5e5;box-shadow:0 20px 60px rgba(0,0,0,.18);display:none;flex-direction:column;overflow:hidden;font-size:15px}
+.cb-panel.open{display:flex}
+.cb-head{padding:16px 18px;background:#0a0a0a;color:#fff;display:flex;align-items:center;gap:12px}
+.cb-avatar{width:36px;height:36px;border-radius:50%;background:#006aff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.cb-title{font-weight:700;font-size:15px;line-height:1.2}
+.cb-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
+.cb-head-btns{margin-left:auto;display:flex;gap:4px}
+.cb-icon-btn{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;padding:6px;border-radius:8px;font-size:16px;line-height:1}
+.cb-icon-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+.cb-body{flex:1;overflow-y:auto;padding:18px 16px;display:flex;flex-direction:column;gap:10px;background:#fafafa}
+.cb-msg{max-width:84%;padding:10px 14px;border-radius:16px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.cb-bot{background:#fff;border:1px solid #ebebeb;align-self:flex-start;border-bottom-left-radius:4px}
+.cb-user{background:#0a0a0a;color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.cb-note{font-size:12px;color:#888;align-self:flex-start;max-width:90%;line-height:1.5;padding:0 4px}
+.cb-opts{display:flex;flex-wrap:wrap;gap:8px;align-self:flex-start;max-width:100%}
+.cb-opt{border:1.5px solid #006aff;background:#fff;color:#006aff;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.cb-opt:hover{background:#006aff;color:#fff}
+.cb-opt.dark{border-color:#0a0a0a;background:#0a0a0a;color:#fff}
+.cb-opt.ghost{border-color:#d4d4d4;color:#666}
+.cb-opt.ghost:hover{background:#f0f0f0;color:#333}
+.cb-typing{align-self:flex-start;background:#fff;border:1px solid #ebebeb;border-radius:16px;border-bottom-left-radius:4px;padding:12px 16px;display:flex;gap:4px}
+.cb-typing span{width:6px;height:6px;border-radius:50%;background:#bbb;animation:cbBlink 1.2s infinite}
+.cb-typing span:nth-child(2){animation-delay:.2s}.cb-typing span:nth-child(3){animation-delay:.4s}
+@keyframes cbBlink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+.cb-foot{border-top:1px solid #ebebeb;padding:10px 12px;display:flex;gap:8px;background:#fff}
+.cb-input{flex:1;border:1px solid #e0e0e0;border-radius:12px;padding:10px 12px;font-size:15px;font-family:inherit;outline:none}
+.cb-input:focus{border-color:#006aff}
+.cb-send{border:none;background:#0a0a0a;color:#fff;border-radius:12px;padding:0 16px;font-weight:600;cursor:pointer;font-family:inherit}
+.cb-send:disabled{opacity:.35;cursor:default}
+.cb-err{font-size:12px;color:#d93025;padding:0 14px 8px;display:none;background:#fff}
+@media(max-width:640px){
+  .cb-panel{right:0;bottom:0;width:100%;height:85vh;max-height:85vh;border-radius:20px 20px 0 0}
+  .cb-launch{right:16px;bottom:16px}
+  .cb-teaser{right:84px;bottom:24px}
+}
+</style>
+
+<button class="cb-launch" id="cb-launch" aria-label="開啟線上諮詢">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v11H8l-4 4V5z" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><circle cx="9" cy="10.5" r="1.2" fill="#fff"/><circle cx="12.5" cy="10.5" r="1.2" fill="#fff"/><circle cx="16" cy="10.5" r="1.2" fill="#fff"/></svg>
+  <span class="cb-dot"></span>
+</button>
+<div class="cb-teaser" id="cb-teaser">60 秒算算你每月能省幾小時？<button class="cb-teaser-x" id="cb-teaser-x" aria-label="關閉">×</button></div>
+
+<div class="cb-panel" id="cb-panel" role="dialog" aria-label="線上諮詢">
+  <div class="cb-head">
+    <div class="cb-avatar">J</div>
+    <div><div class="cb-title">Justin 的線上助理</div><div class="cb-sub">通常 1 個工作天內回覆</div></div>
+    <div class="cb-head-btns">
+      <button class="cb-icon-btn" id="cb-restart" title="重新開始">↻</button>
+      <button class="cb-icon-btn" id="cb-close" title="關閉">✕</button>
+    </div>
+  </div>
+  <div class="cb-body" id="cb-body"></div>
+  <div class="cb-err" id="cb-err"></div>
+  <div class="cb-foot">
+    <input class="cb-input" id="cb-input" placeholder="輸入訊息…" autocomplete="off" maxlength="500" />
+    <button class="cb-send" id="cb-send">送出</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORE_KEY = "ms_chat_v2";
+  const HOURS_MID = { "3 小時以下": 2, "3–10 小時": 6.5, "10–20 小時": 15, "20 小時以上": 25 };
+  const HOURS = Object.keys(HOURS_MID);
+
+  // ---------- 腳本題庫 ----------
+  const FLOW = {
+    start: {
+      msgs: ["嗨 👋 我是 Justin 的線上助理。", "回答 3 個問題，我幫你估算每月能省下多少時間，並推薦適合的方案。你想了解哪一塊？"],
+      options: [
+        { label: "企業 AI 導入", set: { category: "企業 AI 導入" }, next: "ai_q1" },
+        { label: "投資分析工具", set: { category: "投資分析工具" }, next: "inv_q1" },
+        { label: "AI 教學／內訓", set: { category: "AI 教學／內訓" }, next: "edu_q1" },
+        { label: "官網與數位營運", set: { category: "官網與數位營運" }, next: "web_q1" },
+        { label: "先看看 / 訂閱筆記", set: { category: "先看看" }, next: "browse", ghost: true }
+      ]
+    },
+    ai_q1:  { msgs: ["了解！你的團隊大約幾個人？"], key: "q1", choices: ["1–10 人", "11–50 人", "51–200 人", "200 人以上"], next: "ai_q2" },
+    ai_q2:  { msgs: ["目前最想先自動化的是哪一塊？"], key: "q2", choices: ["文件歸檔", "報表整理", "信件客服", "其他"], next: "ai_hours" },
+    ai_hours: { msgs: ["整個團隊每週合計，大約花多少時間在這類重複作業上？"], key: "hours", choices: HOURS, next: "estimate" },
+    inv_q1: { msgs: ["你的身分比較接近哪一種？"], key: "q1", choices: ["個人投資人", "投顧・法人", "媒體・教育"], next: "inv_q2" },
+    inv_q2: { msgs: ["目前最需要哪一種工具？"], key: "q2", choices: ["自動抓財報", "報告摘要", "選股工具"], next: "inv_hours" },
+    inv_hours: { msgs: ["你每週大約花多少時間在研究、整理資料？"], key: "hours", choices: HOURS, next: "estimate" },
+    edu_q1: { msgs: ["課程對象主要是？"], key: "q1", choices: ["主管", "一般員工", "學生・個人"], next: "edu_q2" },
+    edu_q2: { msgs: ["希望的上課形式？"], key: "q2", choices: ["實體", "線上", "都可以"], next: "recommend" },
+    web_q1: { msgs: ["目前的網站狀況是？"], key: "q1", choices: ["還沒有網站", "想改版", "要加金流會員"], next: "web_q2" },
+    web_q2: { msgs: ["預計多久要上線？"], key: "q2", choices: ["1 個月內", "3 個月內", "還在評估"], next: "recommend" },
+
+    estimate: { dynamic: true, next: "recommend" },
+    recommend: {
+      dynamic: true,
+      options: [
+        { label: "預約 AI 流程健檢", action: "book_paid", dark: true },
+        { label: "先免費聊 15 分鐘", action: "book_free" },
+        { label: "留資料，請 Justin 聯絡我", next: "describe", ghost: true }
+      ]
+    },
+    after_book: {
+      msgs: ["預約頁已在新分頁開啟 👍", "也可以留下聯絡方式，讓 Justin 先看過你的狀況，見面時更有效率。"],
+      options: [
+        { label: "留下聯絡方式", next: "describe" },
+        { label: "不用了，謝謝", next: "end_simple", ghost: true }
+      ]
+    },
+
+    browse: {
+      msgs: ["沒問題！你可以先看看 14 個實測案例，或每週收一則「AI 實戰筆記」。"],
+      options: [
+        { label: "訂閱 AI 實戰筆記", set: { intent: "subscribe" }, next: "sub_name" },
+        { label: "看實測案例", action: "scroll", target: "services", next: "browse_offer" },
+        { label: "用 60 秒試算", action: "scroll", target: "calc", close: true }
+      ]
+    },
+    browse_offer: {
+      msgs: ["要不要每週收到一則拿去就能用的 AI 實戰筆記？免費，隨時可取消。"],
+      options: [
+        { label: "好，幫我訂閱", set: { intent: "subscribe" }, next: "sub_name" },
+        { label: "不用了，謝謝", next: "end_simple", ghost: true }
+      ]
+    },
+    sub_name: { msgs: ["好的！怎麼稱呼你呢？"], input: { key: "nickname", placeholder: "你的暱稱" }, next: "sub_email" },
+    sub_email: {
+      msgs: ["{nickname}，筆記要寄到哪個 Email？"],
+      note: "Email 僅用於寄送筆記，隨時可回信取消訂閱。",
+      input: { key: "email", placeholder: "you@example.com", type: "email" },
+      next: "submit_sub"
+    },
+    sub_done: {
+      msgs: ["訂閱完成！歡迎信已寄到你的信箱 📬", "有任何 AI 導入的問題，隨時點右下角找我。"],
+      options: [
+        { label: "看最新筆記", action: "scroll", target: "notes", close: true },
+        { label: "回到頁面", action: "close", ghost: true }
+      ]
+    },
+    end_simple: {
+      msgs: ["好的！有任何問題隨時點右下角找我 😊"],
+      options: [{ label: "重新開始", action: "restart", ghost: true }]
+    },
+
+    describe: {
+      msgs: ["可以用一兩句話描述你目前遇到的狀況嗎？", "例：每月要手動整理 30 份報表"],
+      input: { key: "description", placeholder: "簡單描述你的狀況…", optional: true },
+      next: "name"
+    },
+    name: { msgs: ["怎麼稱呼你呢？"], input: { key: "nickname", placeholder: "你的暱稱" }, next: "email" },
+    email: {
+      msgs: ["{nickname} 你好！方便留個 Email 嗎？Justin 會用它回覆你。"],
+      note: "資料僅用於回覆你的諮詢，不會提供給第三方。",
+      input: { key: "email", placeholder: "you@example.com", type: "email" },
+      next: "company"
+    },
+    company: { msgs: ["公司名稱是？（選填）"], input: { key: "company", placeholder: "公司名稱", optional: true }, next: "line" },
+    line: { msgs: ["LINE ID 呢？（選填）方便的話，Justin 也可以用 LINE 跟你聯繫。"], input: { key: "lineId", placeholder: "LINE ID", optional: true }, next: "submit" },
+    done: {
+      msgs: ["謝謝 {nickname}！Justin 會在 1 個工作天內回覆你，確認信也已寄到你的信箱 📬", "想更快開始？可以直接預約 👇"],
+      options: [
+        { label: "預約 AI 流程健檢", action: "book_paid", dark: true, noFollow: true },
+        { label: "先免費聊 15 分鐘", action: "book_free", noFollow: true },
+        { label: "回到頁面", action: "close", ghost: true }
+      ]
+    }
+  };
+
+  // ---------- 狀態 ----------
+  const el = function (id) { return document.getElementById(id); };
+  const panel = el("cb-panel"), body = el("cb-body"), input = el("cb-input"), errBox = el("cb-err");
+  let S = load() || fresh();
+  let busy = false;
+
+  function fresh() {
+    return { sessionId: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), step: null, data: {}, path: [], history: [], bookedClick: false, consentAt: "" };
+  }
+  function load() { try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) {} }
+  function track(name, params) { try { gtag("event", name, params || {}); } catch (e) {} }
+  function fill(t) { return t.replace(/\{(\w+)\}/g, function (_, k) { return S.data[k] || ""; }); }
+  const wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  // ---------- 估算與推薦 ----------
+  function estimateMsgs() {
+    const mid = HOURS_MID[S.data.hours] || 0;
+    const monthly = mid * 4.3;
+    const low = Math.round(monthly * 0.5), high = Math.round(monthly * 0.83);
+    S.data.estimate = low + "–" + high + " 小時/月";
+    return { msgs: ["初步估算：每月大約可以省下 " + low + "–" + high + " 小時 ⏱"], note: "以 14 個實測案例的下限 50% 與常見值 83% 估算，實際依流程而定。" };
+  }
+  function recommendMsgs() {
+    const c = S.data.category, d = S.data;
+    let paid = false, text;
+    if (c === "企業 AI 導入") {
+      paid = true;
+      text = "建議從「AI 流程健檢」開始：60–90 分鐘拆解你的流程，交付書面自動化機會清單。費用 NT$3,000，可全額折抵後續建置。";
+    } else if (c === "官網與數位營運" && d.q2 === "1 個月內") {
+      paid = true;
+      text = "時程比較緊，建議直接預約「AI 流程健檢」，一次把範圍與做法釐清（NT$3,000，可折抵後續建置）。";
+    } else if (c === "AI 教學／內訓") {
+      text = "內訓會依人數與時數報價。建議先免費聊 15 分鐘，確認對象、目標與上課形式。";
+    } else if (c === "投資分析工具") {
+      text = "建議先免費聊 15 分鐘，確認你需要的資料範圍與交付方式，再決定要不要客製。";
+    } else {
+      text = "建議先免費聊 15 分鐘，確認範圍後再提供報價；想一次釐清做法，也可以直接預約 AI 流程健檢（NT$3,000，可折抵後續建置）。";
+    }
+    S.data.recommend = paid ? "AI 流程健檢" : "免費 15 分鐘";
+    return { msgs: [text] };
+  }
+  function priority() {
+    const d = S.data, h = HOURS_MID[d.hours] || 0;
+    if (S.bookedClick) return "高";
+    if (d.category === "企業 AI 導入" && d.q1 !== "1–10 人" && h >= 15) return "高";
+    if (d.category === "官網與數位營運" && d.q2 === "1 個月內") return "高";
+    if (d.category === "投資分析工具" && d.q1 === "投顧・法人") return "高";
+    if (d.category === "AI 教學／內訓" && d.q1 !== "學生・個人") return "中";
+    if (h >= 6.5 || d.q2 === "3 個月內") return "中";
+    return "一般";
+  }
+
+  // ---------- 畫面 ----------
+  function addBubble(type, text, record) {
+    const d = document.createElement("div");
+    d.className = type === "note" ? "cb-note" : "cb-msg " + (type === "user" ? "cb-user" : "cb-bot");
+    d.textContent = text;
+    body.appendChild(d);
+    if (record !== false) { S.history.push({ t: type, x: text }); save(); }
+    body.scrollTop = body.scrollHeight;
+  }
+  function clearOptions() { body.querySelectorAll(".cb-opts").forEach(function (n) { n.remove(); }); }
+  function showTyping() {
+    const t = document.createElement("div");
+    t.className = "cb-typing"; t.innerHTML = "<span></span><span></span><span></span>";
+    body.appendChild(t); body.scrollTop = body.scrollHeight; return t;
+  }
+  function setInput(cfg) {
+    input.value = "";
+    input.type = cfg && cfg.type === "email" ? "email" : "text";
+    input.placeholder = cfg ? cfg.placeholder : "輸入訊息…";
+    errBox.style.display = "none";
+  }
+  function renderOptions(node) {
+    const list = (node.options || (node.choices || []).map(function (c) { return { label: c, choice: true }; })).slice();
+    if (node.input && node.input.optional) list.push({ label: "跳過", skip: true, ghost: true });
+    if (!list.length) return;
+    const wrap = document.createElement("div");
+    wrap.className = "cb-opts";
+    list.forEach(function (o) {
+      const b = document.createElement("button");
+      b.className = "cb-opt" + (o.dark ? " dark" : "") + (o.ghost ? " ghost" : "");
+      b.textContent = o.label;
+      b.onclick = function () { onOption(node, o); };
+      wrap.appendChild(b);
+    });
+    body.appendChild(wrap); body.scrollTop = body.scrollHeight;
+  }
+
+  // ---------- 流程 ----------
+  async function go(stepId) {
+    if (stepId === "submit") return submit("lead");
+    if (stepId === "submit_sub") return submit("subscribe");
+    const node = FLOW[stepId];
+    S.step = stepId; save();
+    clearOptions();
+    busy = true;
+    let msgs = node.msgs || [], note = node.note;
+    if (stepId === "estimate") { const r = estimateMsgs(); msgs = r.msgs; note = r.note; }
+    if (stepId === "recommend") { msgs = recommendMsgs().msgs; }
+    for (const m of msgs) {
+      const t = showTyping();
+      await wait(550);
+      t.remove();
+      addBubble("bot", fill(m));
+    }
+    if (note) {
+      addBubble("note", note);
+      if (node.input && node.input.key === "email") { S.consentAt = new Date().toISOString(); }
+    }
+    save();
+    busy = false;
+    if (stepId === "estimate") return go(node.next);
+    setInput(node.input);
+    renderOptions(node);
+    if (node.input) input.focus();
+  }
+
+  function onOption(node, o) {
+    if (busy) return;
+    if (o.skip) return onSkip();
+    clearOptions();
+    addBubble("user", o.label);
+    S.path.push(o.label);
+    if (o.set) Object.assign(S.data, o.set);
+    if (o.choice && node.key) S.data[node.key] = o.label;
+    if (S.step === "start") track("chat_category", { category: S.data.category });
+    save();
+
+    if (o.action === "scroll") {
+      const t = document.getElementById(o.target);
+      if (t) t.scrollIntoView({ behavior: "smooth" });
+      if (o.close) { closePanel(); renderOptions(node); return; }
+    }
+    if (o.action === "restart") return restart();
+    if (o.action === "close") { closePanel(); renderOptions(node); return; }
+    if (o.action === "book_paid" || o.action === "book_free") {
+      S.bookedClick = true; save();
+      openBooking(o.action === "book_paid", "聊天機器人");
+      if (o.noFollow) { renderOptions(node); return; }
+      return go("after_book");
+    }
+    go(o.next || node.next);
+  }
+
+  function onSkip() {
+    const node = FLOW[S.step];
+    clearOptions();
+    addBubble("user", "跳過");
+    S.path.push("跳過：" + node.input.key);
+    save();
+    go(node.next);
+  }
+
+  function onSend() {
+    if (busy) return;
+    const text = input.value.trim();
+    if (!text) return;
+    const node = FLOW[S.step];
+    if (!node) return;
+
+    if (node.input) {
+      const key = node.input.key;
+      if (key === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
+        errBox.textContent = "Email 格式好像不太對，再確認一下？";
+        errBox.style.display = "block";
+        return;
+      }
+      clearOptions();
+      addBubble("user", text);
+      S.data[key] = key === "description" && S.data.description ? S.data.description + "；" + text : text;
+      save();
+      return go(node.next);
+    }
+
+    // 按鈕步驟卻自己打字 → 記下來，直接跳到留資料
+    clearOptions();
+    addBubble("user", text);
+    S.data.description = S.data.description ? S.data.description + "；" + text : text;
+    S.path.push("（自行輸入）");
+    if (!S.data.category) S.data.category = "其他";
+    save();
+    (async function () {
+      busy = true;
+      const t = showTyping(); await wait(550); t.remove();
+      addBubble("bot", "我先記下來，Justin 會親自回覆你 🙏");
+      busy = false;
+      go(S.data.nickname ? (S.data.email ? "submit" : "email") : "name");
+    })();
+  }
+
+  async function submit(type) {
+    busy = true;
+    const t = showTyping();
+    const d = S.data;
+    const payload = type === "subscribe"
+      ? { type: "subscribe", email: d.email, nickname: d.nickname, source: "聊天機器人" }
+      : {
+          type: "lead", sessionId: S.sessionId, priority: priority(),
+          nickname: d.nickname, email: d.email, company: d.company || "", lineId: d.lineId || "",
+          category: d.category || "", q1: d.q1 || "", q2: d.q2 || "", hours: d.hours || "",
+          estimate: d.estimate || "", recommend: d.recommend || "", description: d.description || "",
+          path: S.path, referrer: document.referrer || "", utm: location.search.replace(/^\?/, ""),
+          device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "手機" : "桌機",
+          consentAt: S.consentAt
+        };
+    const ok = SITE_CONFIG.API_ENDPOINT ? await postApi(payload) : true;
+    await wait(400);
+    t.remove();
+    busy = false;
+    if (!ok) {
+      addBubble("bot", "抱歉，送出時網路好像不太穩 😥 可以直接寄信到 modseventeen@gmail.com，或稍後點 ↻ 再試一次。");
+      return;
+    }
+    if (!SITE_CONFIG.API_ENDPOINT) addBubble("note", "（測試模式：尚未連接後端，資料未送出）");
+    if (type === "subscribe") { track("newsletter_subscribe", { source: "chatbot" }); return go("sub_done"); }
+    track("chat_lead_submit", { category: payload.category, priority: payload.priority });
+    go("done");
+  }
+
+  // ---------- 開關 ----------
+  function openPanel() {
+    panel.classList.add("open");
+    el("cb-teaser").style.display = "none";
+    el("cb-launch").querySelector(".cb-dot").style.display = "none";
+    track("chat_open");
+    if (!S.history.length) { go("start"); return; }
+    if (!body.children.length) {
+      S.history.forEach(function (h) { addBubble(h.t, h.x, false); });
+      const node = FLOW[S.step];
+      if (node) { setInput(node.input); renderOptions(node); }
+    }
+  }
+  function closePanel() { panel.classList.remove("open"); }
+  function restart() { S = fresh(); save(); body.innerHTML = ""; go("start"); }
+
+  el("cb-launch").onclick = function () { panel.classList.contains("open") ? closePanel() : openPanel(); };
+  el("cb-close").onclick = closePanel;
+  el("cb-restart").onclick = restart;
+  el("cb-send").onclick = onSend;
+  input.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); onSend(); } });
+
+  // 停留 20 秒或捲過一半時，顯示一次提示泡泡
+  let teased = false;
+  try { teased = sessionStorage.getItem("ms_chat_teased") === "1"; } catch (e) {}
+  function tease() {
+    if (teased || panel.classList.contains("open")) return;
+    teased = true;
+    try { sessionStorage.setItem("ms_chat_teased", "1"); } catch (e) {}
+    el("cb-teaser").style.display = "block";
+  }
+  setTimeout(tease, 20000);
+  window.addEventListener("scroll", function () {
+    const h = document.documentElement;
+    if ((h.scrollTop + window.innerHeight) / h.scrollHeight > 0.5) tease();
+  }, { passive: true });
+  el("cb-teaser").onclick = function (e) { if (e.target.id !== "cb-teaser-x") openPanel(); };
+  el("cb-teaser-x").onclick = function (e) { e.stopPropagation(); el("cb-teaser").style.display = "none"; };
+})();
+</script>
+<!-- ===== /CHATBOT ===== -->
+
+
 </body>
 </html>
