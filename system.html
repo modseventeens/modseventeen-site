@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>投資系統 — Justin Liao</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#006aff;--ink:#0a0a0a;--muted:#666;--line:#e5e5e5;--soft:#f6f7f9}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang TC","Noto Sans TC",Arial,sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased;line-height:1.5}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+
+/* NAV（沿用首頁樣式） */
+.nav{position:sticky;top:0;z-index:20;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(255,255,255,.88);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1120px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-brand{font-weight:700;font-size:18px;letter-spacing:-.02em;text-decoration:none}
+.nav-brand span{color:var(--muted);font-weight:500}
+.nav-back{font-size:14px;color:var(--muted);text-decoration:none}
+.nav-back:hover{color:var(--accent)}
+
+main{max-width:1120px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:32px;letter-spacing:-.03em;font-weight:800;margin-bottom:24px}
+
+/* 頁簽 */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:28px;overflow-x:auto}
+.tab{padding:12px 18px;font-size:15px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.panel[hidden]{display:none}
+.placeholder{padding:64px 24px;text-align:center;color:var(--muted);background:var(--soft);border-radius:16px}
+
+/* 列表 */
+.list-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;font-size:14px;color:var(--muted)}
+table.notes{width:100%;border-collapse:collapse}
+.notes th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line)}
+.notes td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:top;font-size:15px}
+.notes td.date,.notes th.date{width:120px;white-space:nowrap;font-variant-numeric:tabular-nums;color:#333}
+.notes td.channel,.notes th.channel{width:200px;color:#333}
+.title-btn{text-align:left;font-weight:600;line-height:1.45}
+.title-btn:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.chip{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.state{padding:48px 12px;text-align:center;color:var(--muted)}
+.state.error{color:#c62828}
+
+/* 分頁 */
+.pager{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:28px;flex-wrap:wrap}
+.pager button{min-width:36px;height:36px;padding:0 10px;border-radius:8px;border:1px solid var(--line);font-size:14px}
+.pager button:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.pager button[aria-current="page"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pager button:disabled{opacity:.35;cursor:default}
+.pager .gap{color:var(--muted);padding:0 4px}
+
+/* 彈窗 */
+.overlay{position:fixed;inset:0;z-index:100;background:rgba(10,10,10,.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.overlay[hidden]{display:none}
+.modal{position:relative;width:100%;max-width:880px;background:#fff;border-radius:18px;box-shadow:0 24px 64px rgba(0,0,0,.25);padding:28px 32px 36px}
+.modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;font-size:22px;line-height:1;color:var(--muted)}
+.modal-close:hover{background:var(--soft);color:var(--ink)}
+.modal h2{font-size:22px;line-height:1.4;letter-spacing:-.02em;padding-right:40px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--muted);margin:10px 0 18px}
+.meta a{color:var(--accent);text-decoration:none}
+.video{position:relative;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;margin-bottom:24px}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.section-label{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.04em;margin:8px 0 10px}
+.summary{background:#f3f7ff;border:1px solid #d6e5ff;border-radius:12px;padding:16px 20px 16px 36px;margin-bottom:20px}
+.summary li{margin:4px 0}
+details.fullnote>summary{cursor:pointer;font-weight:600;color:var(--accent);margin:8px 0 14px;list-style:none}
+details.fullnote>summary::before{content:"▸ ";}
+details.fullnote[open]>summary::before{content:"▾ ";}
+
+/* 筆記內文 */
+.note{font-size:15px;line-height:1.75;color:#222}
+.note p{margin:10px 0}
+.note h3,.note h4,.note h5{margin:22px 0 8px;line-height:1.4}
+.note ul,.note ol{padding-left:22px;margin:8px 0}
+.note li{margin:4px 0}
+.note li>ul,.note li>ol{margin:4px 0}
+.note .callout{display:flex;gap:10px;background:var(--soft);border-radius:10px;padding:12px 16px;margin:12px 0}
+.note .callout-icon{flex:none}
+.note .callout-body{min-width:0}
+.note blockquote{border-left:3px solid var(--line);padding-left:14px;color:#444;margin:12px 0}
+.note hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+.note code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:.9em}
+.note pre{background:var(--soft);padding:12px;border-radius:8px;overflow-x:auto}
+.note img{max-width:100%;border-radius:8px}
+.note .table-wrap{overflow-x:auto;margin:14px 0}
+.note table{border-collapse:collapse;font-size:14px;min-width:560px}
+.note th,.note td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.note th{background:var(--soft);font-weight:600}
+.note a{color:var(--accent);text-decoration:none}
+.note a.ts{font-size:12px;white-space:nowrap}
+.note a.ts:hover{text-decoration:underline}
+.note .c-gray{color:#888}.note .c-brown{color:#8d6e63}.note .c-orange{color:#e8710a}.note .c-yellow{background:#fff3bf}
+.note .c-green{color:#2e7d32}.note .c-blue{color:var(--accent)}.note .c-purple{color:#7b1fa2}.note .c-pink{color:#c2185b}.note .c-red{color:#c62828}
+.note [class$="_background"]{border-radius:3px;padding:0 2px}
+.note .c-yellow_background{background:#fff3bf}.note .c-gray_background{background:#f1f1ef}.note .c-blue_background{background:#e7f0ff}
+.note .c-green_background{background:#e6f4ea}.note .c-red_background{background:#fde8e8}.note .c-orange_background{background:#fdebd8}
+.note .c-purple_background{background:#f3e8fd}.note .c-pink_background{background:#fde8f1}.note .c-brown_background{background:#f4eeee}
+body.lock{overflow:hidden}
+
+@media (max-width:720px){
+  main{padding:28px 16px 64px}
+  h1{font-size:26px}
+  .notes thead{display:none}
+  .notes tr{display:block;padding:14px 0;border-bottom:1px solid var(--line)}
+  .notes td{display:inline;border:0;padding:0}
+  .notes td.title{display:block;margin-bottom:6px}
+  .notes td.date{font-size:13px;color:var(--muted);margin-right:10px}
+  .overlay{padding:0}
+  .modal{border-radius:0;min-height:100%;padding:20px 16px 32px}
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="/">Justin Liao <span>／ 投資系統</span></a>
+    <a class="nav-back" href="/">← 回首頁</a>
+  </div>
+</nav>
+
+<main>
+  <h1>投資系統</h1>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-mops" aria-controls="panel-mops" data-tab="mops">公開資訊觀測站</button>
+    <button class="tab" role="tab" id="tab-youtube" aria-controls="panel-youtube" data-tab="youtube">YouTube 筆記</button>
+    <button class="tab" role="tab" id="tab-reports" aria-controls="panel-reports" data-tab="reports">公司報告</button>
+  </div>
+
+  <section class="panel" id="panel-mops" role="tabpanel" aria-labelledby="tab-mops" hidden>
+    <div class="placeholder">公開資訊觀測站資料建置中</div>
+  </section>
+
+  <section class="panel" id="panel-youtube" role="tabpanel" aria-labelledby="tab-youtube" hidden>
+    <div class="list-head"><span id="count"></span><span id="updated"></span></div>
+    <table class="notes">
+      <thead><tr><th>標題</th><th class="date">發布日期</th><th class="channel">頻道</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="3" class="state">載入中…</td></tr></tbody>
+    </table>
+    <nav class="pager" id="pager" aria-label="分頁"></nav>
+  </section>
+
+  <section class="panel" id="panel-reports" role="tabpanel" aria-labelledby="tab-reports" hidden>
+    <div class="placeholder">公司報告資料建置中</div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="m-title">
+    <button class="modal-close" id="m-close" aria-label="關閉">×</button>
+    <h2 id="m-title"></h2>
+    <div class="meta" id="m-meta"></div>
+    <div class="video" id="m-video"></div>
+    <div id="m-body"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var PAGE_SIZE = 10;
+  var DEFAULT_TAB = "youtube"; // 另外兩個頁簽有內容後，可改成 "mops"
+  var API = "/api/youtube-notes";
+
+  var items = [];
+  var page = 1;
+  var loaded = false;
+  var detailCache = {};
+
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------- 頁簽（網址 #mops / #youtube / #reports） ---------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+  function showTab(name) {
+    if (!document.getElementById("panel-" + name)) name = DEFAULT_TAB;
+    tabs.forEach(function (t) {
+      var on = t.dataset.tab === name;
+      t.setAttribute("aria-selected", on);
+      document.getElementById("panel-" + t.dataset.tab).hidden = !on;
+    });
+    if (name === "youtube" && !loaded) loadList();
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () {
+      history.replaceState(null, "", "#" + t.dataset.tab);
+      showTab(t.dataset.tab);
+    });
+  });
+  window.addEventListener("hashchange", function () { showTab(location.hash.slice(1)); });
+
+  /* ---------- 列表 ---------- */
+  function loadList() {
+    loaded = true;
+    fetch(API).then(function (r) {
+      return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || r.status); return d; });
+    }).then(function (d) {
+      items = d.items || [];
+      page = 1;
+      renderList();
+    }).catch(function (e) {
+      loaded = false;
+      $("rows").innerHTML = '<tr><td colspan="3" class="state error">讀取失敗：' + esc(e.message) + '</td></tr>';
+    });
+  }
+
+  function renderList() {
+    var total = items.length;
+    var pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (page > pages) page = pages;
+    $("count").textContent = "共 " + total + " 支影片";
+    if (!total) {
+      $("rows").innerHTML = '<tr><td colspan="3" class="state">目前沒有已完成的筆記</td></tr>';
+      $("pager").innerHTML = "";
+      return;
+    }
+    var slice = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    $("rows").innerHTML = slice.map(function (it) {
+      return '<tr>' +
+        '<td class="title"><button class="title-btn" data-id="' + esc(it.id) + '">' + esc(it.title) + '</button></td>' +
+        '<td class="date">' + esc(it.date || "—") + '</td>' +
+        '<td class="channel">' + (it.channel ? '<span class="chip">' + esc(it.channel) + '</span>' : "—") + '</td>' +
+        '</tr>';
+    }).join("");
+    renderPager(pages);
+  }
+
+  function renderPager(pages) {
+    if (pages <= 1) { $("pager").innerHTML = ""; return; }
+    var nums = [];
+    for (var i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || Math.abs(i - page) <= 1) nums.push(i);
+      else if (nums[nums.length - 1] !== "…") nums.push("…");
+    }
+    var h = '<button data-p="' + (page - 1) + '"' + (page === 1 ? " disabled" : "") + '>上一頁</button>';
+    nums.forEach(function (n) {
+      h += n === "…" ? '<span class="gap">…</span>'
+        : '<button data-p="' + n + '"' + (n === page ? ' aria-current="page"' : "") + '>' + n + '</button>';
+    });
+    h += '<button data-p="' + (page + 1) + '"' + (page === pages ? " disabled" : "") + '>下一頁</button>';
+    $("pager").innerHTML = h;
+  }
+
+  $("pager").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-p]");
+    if (!b || b.disabled) return;
+    page = +b.dataset.p;
+    renderList();
+    $("panel-youtube").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  $("rows").addEventListener("click", function (e) {
+    var b = e.target.closest(".title-btn");
+    if (b) openNote(b.dataset.id);
+  });
+
+  /* ---------- 彈窗 ---------- */
+  var overlay = $("overlay");
+  var lastFocus = null;
+  var currentId = null;
+
+  function openNote(id) {
+    var it = items.filter(function (x) { return x.id === id; })[0] || {};
+    lastFocus = document.activeElement;
+    currentId = id;
+    $("m-title").textContent = it.title || "";
+    $("m-meta").innerHTML = meta(it);
+    $("m-video").innerHTML = it.videoId
+      ? '<iframe id="yt" src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(it.videoId) +
+        '?enablejsapi=1&rel=0" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+      : "";
+    $("m-video").hidden = !it.videoId;
+    $("m-body").innerHTML = '<div class="state">筆記載入中…</div>';
+    overlay.hidden = false;
+    document.body.classList.add("lock");
+    overlay.scrollTop = 0;
+    $("m-close").focus();
+
+    var p = detailCache[id] || fetch(API + "/" + id).then(function (r) {
+      return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || r.status); return d; });
+    });
+    detailCache[id] = p;
+    p.then(function (d) {
+      if (currentId !== id) return; // 已關閉或切到別篇
+      if (d.length) $("m-meta").innerHTML = meta(Object.assign({}, it, d));
+      $("m-body").innerHTML = body(d);
+    }).catch(function (e) {
+      delete detailCache[id];
+      $("m-body").innerHTML = '<div class="state error">筆記讀取失敗：' + esc(e.message) + '</div>';
+    });
+  }
+
+  function meta(it) {
+    var parts = [];
+    if (it.date) parts.push("<span>" + esc(it.date) + "</span>");
+    if (it.channel) parts.push('<span class="chip">' + esc(it.channel) + '</span>');
+    if (it.type) parts.push("<span>" + esc(it.type) + "</span>");
+    if (it.length) parts.push("<span>長度 " + esc(it.length) + "</span>");
+    if (it.link) parts.push('<a href="' + esc(it.link) + '" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a>');
+    return parts.join("");
+  }
+
+  function body(d) {
+    var note = '<div class="note">' + (d.html || '<p class="state">這篇沒有筆記內容</p>') + '</div>';
+    if (!d.summary) return note;
+    var lines = d.summary.split(/\n+/).map(function (l) { return l.replace(/^\s*(?:[-•*・]|\d+[.)、])\s*/, "").trim(); })
+      .filter(Boolean);
+    return '<div class="section-label">重點摘要</div>' +
+      '<ul class="summary">' + lines.map(function (l) { return "<li>" + esc(l) + "</li>"; }).join("") + '</ul>' +
+      '<details class="fullnote"><summary>展開完整筆記</summary>' + note + '</details>';
+  }
+
+  function closeNote() {
+    if (overlay.hidden) return;
+    overlay.hidden = true;
+    currentId = null;
+    $("m-video").innerHTML = ""; // 停止播放
+    document.body.classList.remove("lock");
+    if (lastFocus) lastFocus.focus();
+  }
+
+  // 點彈窗外面（灰色遮罩）關閉
+  overlay.addEventListener("mousedown", function (e) { overlay._downOutside = e.target === overlay; });
+  overlay.addEventListener("click", function (e) {
+    if (e.target === overlay && overlay._downOutside) closeNote();
+  });
+  $("m-close").addEventListener("click", closeNote);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNote(); });
+
+  // 筆記裡的時間戳：直接讓上方影片跳到該秒數
+  $("m-body").addEventListener("click", function (e) {
+    var a = e.target.closest("a.ts");
+    var yt = document.getElementById("yt");
+    if (!a || !yt) return;
+    e.preventDefault();
+    var send = function (func, args) {
+      yt.contentWindow.postMessage(JSON.stringify({ event: "command", func: func, args: args || [] }), "*");
+    };
+    send("seekTo", [+a.dataset.t, true]);
+    send("playVideo");
+    $("m-video").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  showTab(location.hash.slice(1) || DEFAULT_TAB);
+})();
+</script>
+</body>
+</html>
