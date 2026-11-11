@@ -86,18 +86,30 @@ export function splitCompany(s) {
 }
 const isCode = (s) => /^\d{4,6}[A-Z]?$/.test(String(s || "").trim());
 
-/* ---------------- 類型分類（依主旨關鍵字） ---------------- */
+/* ---------------- 類型分類 ---------------- */
+
+// 規則改版時把這個數字 +1，排程會分批把舊資料重新分類、重算備註
+export const RULES_VER = 2;
+
+// 不論條款或關鍵字，一律歸「其他」的公告
+const FORCE_OTHER = /簡易合併|債權人|全面換發|更名|公司名稱變更/;
+
+// 取得處分投資：只收設備、廠務工程、資產、不動產、使用權資產、辦公室、增加投資、新建蓋廠
+const ACQUIRE =
+  /(取得|購置|購買|購入|添購|承租|租賃|處分|出售|出租|收購).{0,40}?(設備|機器|機台|廠務|工程|資產|不動產|土地|廠房|房地|建物|大樓|辦公室|使用權|股權|股份|普通股|特別股|貨櫃|船舶|新船|飛機)|增加投資|追加投資|(現金)?增資.{0,12}子公司|子公司.{0,12}(現金)?增資|設立.{0,10}子公司|投資(興建|設立|設廠|成立)|新建|興建|增建|擴建|建廠|蓋廠|擴廠|設廠|資本支出|使用權資產|工程(合約|承攬|案)/;
+// 第 20 款裡的理財交易（基金、債券、票券）不算取得處分投資
+const TREASURY = /基金|債券|公司債|票券|貨幣市場|附買回|理財|定存|結構型/;
 
 const MATERIAL_RULES = [
   ["澄清報導", /澄清|媒體報導|新聞報導/],
   ["股利", /股利|配息|配股|除權|除息|盈餘分配|盈餘轉增資/],
-  ["財報營收", /財務報告|財報|自結|營業收入|營收|損益|每股盈餘|財務資訊/],
+  ["財報營收", /財務報告|財務報表|財報|自結|營業收入|營收|損益|每股盈餘|財務資訊|季報/],
   ["庫藏股", /庫藏股|買回本公司股份|買回股份/],
   ["股東會", /股東常會|股東臨時會|股東會/],
-  ["法說會", /法人說明會|法說會|投資人說明會|業績發表/],
+  ["法說會", /法人說明會|法說會|投資人說明會|業績發表|投資論壇|論壇|Access Day|Conference|Summit|Forum/i],
+  ["取得處分投資", ACQUIRE],
   ["增減資籌資", /增資|減資|私募|公司債|轉換債|發行新股|籌資|融資額度|銀行借款/],
   ["資金貸與背書保證", /資金貸與|背書保證|背書|為他人保證/],
-  ["取得處分投資", /取得|處分|購置|出售|租賃|使用權資產|機器設備|不動產|有價證券|投資|合併|收購|分割|股權/],
   ["人事異動", /異動|辭任|新任|解任|改選|選任|董事長|總經理|發言人|主管|委員/],
   ["董事會決議", /董事會/],
 ];
@@ -110,11 +122,196 @@ const LATEST_RULES = [
   ["資金貸與背書保證", /背書|資金貸與/],
   ["衍生性商品", /衍生性/],
 ];
-export function classify(kind, subject) {
-  const rules = kind === "latest" ? LATEST_RULES : MATERIAL_RULES;
+
+/** 依「符合條款」判斷（只有抓到內文後才有條款）；判斷不了回傳 null */
+function byClause(clause, subject) {
+  switch (String(clause || "")) {
+    case "12": return "法說會";
+    case "31": return "財報營收";
+    case "14": return "股利";
+    case "17": return "股東會";
+    case "19":
+    case "23": return "資金貸與背書保證";
+    case "6": return "人事異動";
+    case "15": return "取得處分投資";
+    case "20": return TREASURY.test(subject) ? "其他" : "取得處分投資";
+    case "11":
+      if (/增資|減資|轉換|發行新股|私募/.test(subject)) return "增減資籌資";
+      if (/收購|股份受讓|取得/.test(subject)) return "取得處分投資";
+      return "其他";
+    default: return null;
+  }
+}
+
+export function classify(kind, subject, clause) {
   const s = String(subject || "");
+  const rules = kind === "latest" ? LATEST_RULES : MATERIAL_RULES;
+  if (kind !== "latest") {
+    if (FORCE_OTHER.test(s)) return "其他";
+    const c = byClause(clause, s);
+    if (c) return c;
+  }
   for (const [name, re] of rules) if (re.test(s)) return name;
   return "其他";
+}
+
+/* ---------------- 備註：從內文抽出重點 ---------------- */
+
+const CURRENCIES = [
+  ["NTD", /^(新台幣|新臺幣|台幣|臺幣|NTD|NT\$|NT|TWD)$/i, "新台幣"],
+  ["USD", /^(美金|美元|USD|US\$)$/i, "美金"],
+  ["CNY", /^(人民幣|RMB|CNY)$/i, "人民幣"],
+  ["JPY", /^(日圓|日幣|日元|JPY)$/i, "日圓"],
+  ["EUR", /^(歐元|EUR)$/i, "歐元"],
+  ["THB", /^(泰銖|泰幣|THB)$/i, "泰銖"],
+  ["HKD", /^(港幣|港元|HKD)$/i, "港幣"],
+  ["VND", /^(越南盾|越幣|VND)$/i, "越南盾"],
+  ["SGD", /^(新加坡幣|新幣|SGD)$/i, "新加坡幣"],
+  ["MYR", /^(馬幣|令吉|MYR)$/i, "馬幣"],
+  ["IDR", /^(印尼盾|IDR)$/i, "印尼盾"],
+  ["INR", /^(印度盧比|盧比|INR)$/i, "印度盧比"],
+  ["GBP", /^(英鎊|GBP)$/i, "英鎊"],
+  ["AUD", /^(澳幣|澳元|AUD)$/i, "澳幣"],
+  ["KRW", /^(韓元|韓圜|KRW)$/i, "韓元"],
+  ["CAD", /^(加幣|加元|CAD)$/i, "加幣"],
+  ["MXN", /^(墨西哥披索|披索|MXN)$/i, "墨西哥披索"],
+  ["PHP", /^(菲律賓比索|比索|PHP)$/i, "菲律賓比索"],
+];
+const CUR_WORDS = "新台幣|新臺幣|台幣|臺幣|NTD|NT\\$|TWD|美金|美元|USD|US\\$|人民幣|RMB|CNY|日圓|日幣|日元|JPY|歐元|EUR|泰銖|泰幣|THB|港幣|港元|HKD|越南盾|越幣|VND|新加坡幣|新幣|SGD|馬幣|令吉|MYR|印尼盾|IDR|印度盧比|盧比|INR|英鎊|GBP|澳幣|澳元|AUD|韓元|韓圜|KRW|加幣|加元|CAD|墨西哥披索|菲律賓比索|披索|比索|MXN|PHP";
+// 幣別（可省略）＋數字＋單位（億／萬／仟／千／百萬，可省略）＋「元」（可省略）
+const MONEY_RE = new RegExp(`(${CUR_WORDS})?\\s*(?:約)?\\s*(-?\\d[\\d,]*(?:\\.\\d+)?)\\s*(百萬|千萬|億|萬|仟|千)?\\s*(元|圓)?`, "gi");
+const UNIT = { 百萬: 1e6, 千萬: 1e7, 億: 1e8, 萬: 1e4, 仟: 1e3, 千: 1e3 };
+
+function curInfo(word) {
+  if (!word) return null;
+  const w = word.replace(/\s/g, "");
+  for (const [code, re, label] of CURRENCIES) if (re.test(w)) return { code, label };
+  return null;
+}
+
+/** 從一段文字抓出金額：[{ code, label, value }]，沒有幣別、單位、元的純數字不算 */
+export function moneyTokens(text) {
+  const out = [];
+  MONEY_RE.lastIndex = 0;
+  let m;
+  while ((m = MONEY_RE.exec(text))) {
+    if (!m[2]) continue;
+    const cur = curInfo(m[1]);
+    if (!cur && !m[3] && !m[4]) continue; // 「381.22坪」「24,200只」這種不是金額
+    const n = parseFloat(m[2].replace(/,/g, ""));
+    if (!Number.isFinite(n) || n === 0) continue;
+    // 單位緊接著的字如果是「股」「坪」等，代表不是金額（例：3,000仟股）
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 1);
+    if (!m[4] && /[股坪只台件%％]/.test(after)) continue;
+    out.push({ code: cur ? cur.code : "NTD", label: cur ? cur.label : "新台幣", value: n * (UNIT[m[3]] || 1), explicit: !!cur });
+  }
+  return out;
+}
+
+function wan(v) {
+  const x = v / 1e4;
+  if (Math.abs(x) >= 100) return Math.round(x).toLocaleString("en-US");
+  if (Math.abs(x) >= 1) return (Math.round(x * 10) / 10).toLocaleString("en-US");
+  return (Math.round(x * 100) / 100).toString();
+}
+
+// 依序找的「金額關鍵字」，越前面越優先
+const AMOUNT_KEYS = ["交易總金額", "總租金", "契約總金額", "合約總金額", "預計投資金額", "投資總額", "預計總金額", "總金額", "總價款", "總價", "投資金額", "處分金額", "金額"];
+
+/** 取得處分投資：交易總金額 → 「2,000 萬（泰銖 3,000 萬）」 */
+export function amountNote(detail) {
+  const lines = String(detail || "").split(/\r?\n/);
+  let tokens = null;
+  for (const key of AMOUNT_KEYS) {
+    for (const line of lines) {
+      const i = line.indexOf(key);
+      if (i < 0) continue;
+      const t = moneyTokens(line.slice(i + key.length));
+      if (t.length) { tokens = t; break; }
+    }
+    if (tokens) break;
+  }
+  if (!tokens) {
+    // 沒有關鍵字時，取全文第一個有標幣別的金額
+    const t = moneyTokens(String(detail || "")).filter((x) => x.explicit);
+    if (t.length) tokens = [t[0]];
+  }
+  if (!tokens) return "";
+  const nt = tokens.find((t) => t.code === "NTD");
+  const fx = tokens.find((t) => t.code !== "NTD");
+  if (nt && fx) return `${wan(nt.value)} 萬（${fx.label} ${wan(fx.value)} 萬）`;
+  if (nt) return `${wan(nt.value)} 萬`;
+  return `${fx.label} ${wan(fx.value)} 萬`;
+}
+
+const CITIES = "台北市|臺北市|新北市|桃園市|台中市|臺中市|台南市|臺南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|宜蘭縣|花蓮縣|台東縣|臺東縣|澎湖縣|金門縣|連江縣";
+const CITY_RE = new RegExp(`(${CITIES})\\s*([^\\s\\d市縣,，、(（)）]{1,3}?[區鄉鎮市])?`);
+const CITY_SHORT = /(台北|臺北|新北|桃園|台中|臺中|台南|臺南|高雄|新竹|基隆|嘉義)/;
+const FOREIGN = /(新加坡|香港|澳門|東京|大阪|上海|北京|深圳|蘇州|紐約|舊金山|洛杉磯|倫敦|首爾|曼谷|吉隆坡|雅加達|胡志明市|河內|馬尼拉|孟買|杜拜|巴黎|法蘭克福|Singapore|Hong Kong|Tokyo|Shanghai|New York|San Francisco|London|Seoul|Bangkok)/i;
+const FOREIGN_ZH = { singapore: "新加坡", "hong kong": "香港", tokyo: "東京", shanghai: "上海", "new york": "紐約", "san francisco": "舊金山", london: "倫敦", seoul: "首爾", bangkok: "曼谷" };
+const ONLINE = /線上|視訊|網路|網際網路|Webex|Teams|Zoom|webcast|online|virtual|電話會議|conference call|直播|YouTube/i;
+
+/** 法說會：「11/13 14:30 線上」「11/26 14:00 台北市中山區」 */
+export function conferenceNote(detail) {
+  const t = String(detail || "");
+  const parts = [];
+  const d = t.match(/說明會之日期[:：]\s*(\d{2,3})\/(\d{1,2})\/(\d{1,2})(?:\s*[~～至-]\s*(\d{2,3})\/(\d{1,2})\/(\d{1,2}))?/);
+  if (d) parts.push(`${+d[2]}/${+d[3]}` + (d[4] ? `~${+d[5]}/${+d[6]}` : ""));
+  const tm = t.match(/說明會之時間[:：]\s*(?:(上午|下午)\s*)?(\d{1,2})\s*(?:時|:|：|點)\s*(\d{1,2})?/);
+  if (tm) {
+    let h = +tm[2];
+    if (tm[1] === "下午" && h < 12) h += 12;
+    parts.push(`${String(h).padStart(2, "0")}:${String(+(tm[3] || 0)).padStart(2, "0")}`);
+  }
+  const lm = t.match(/說明會之地點[:：]\s*([^\n]+)/);
+  if (lm) {
+    const loc = lm[1].trim();
+    const city = loc.match(CITY_RE);
+    let place = "";
+    const foreign = loc.match(FOREIGN);
+    if (city) place = (city[1] + (city[2] || "")).replace(/臺/g, "台");
+    else if (/101大樓|台北101|臺北101/.test(loc)) place = "台北市信義區";
+    else if (foreign) place = FOREIGN_ZH[foreign[1].toLowerCase()] || foreign[1];
+    else if (CITY_SHORT.test(loc)) place = loc.match(CITY_SHORT)[1].replace(/臺/g, "台") + "市";
+    const online = ONLINE.test(loc);
+    if (place && online) parts.push(place + "＋線上");
+    else if (place) parts.push(place);
+    else if (online) parts.push("線上");
+    else parts.push(loc.replace(/[（(].*$/, "").slice(0, 14));
+  }
+  return parts.join(" ");
+}
+
+/** 財報：1 月 1 日累計至本期止基本每股盈餘 */
+export function epsNote(detail) {
+  const m = String(detail || "").match(/累計至本期止基本每股盈餘[^\n:：]*[:：]\s*(\(?\s*-?\s*[\d,]*\.?\d+\s*\)?)/);
+  if (!m) return "";
+  let v = m[1].replace(/[\s,]/g, "");
+  if (/^\(.*\)$/.test(v)) v = "-" + v.slice(1, -1);
+  return `EPS ${v}`;
+}
+
+/** 依類型產生備註；其他類型留空 */
+export function makeNote(category, detail) {
+  if (!detail) return "";
+  if (category === "取得處分投資") return amountNote(detail);
+  if (category === "法說會") return conferenceNote(detail);
+  if (category === "財報營收") return epsNote(detail);
+  return "";
+}
+
+/* ---------------- 資料表欄位補齊（舊資料庫升級用） ---------------- */
+
+const EXTRA_COLUMNS = { announcements: { note: "TEXT", cat_ver: "INTEGER", detail_tries: "INTEGER" } };
+export async function migrate(DB) {
+  await DB.batch(SCHEMA.map((sql) => DB.prepare(sql)));
+  for (const [table, cols] of Object.entries(EXTRA_COLUMNS)) {
+    const { results } = await DB.prepare(`PRAGMA table_info(${table})`).all();
+    const have = new Set(results.map((r) => r.name));
+    for (const [col, type] of Object.entries(cols)) {
+      if (!have.has(col)) await DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`).run();
+    }
+  }
 }
 
 function normSubject(s) {

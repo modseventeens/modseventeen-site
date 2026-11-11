@@ -11,7 +11,9 @@
 import * as M from "./mops.js";
 
 const KEEP_DAYS = 180;
-const DETAILS_PER_RUN = 15;
+const DETAILS_PER_RUN = 30; // 每 10 分鐘抓幾則內文（免費方案每次最多 50 個對外請求）
+const DETAILS_OTHERS_DAYS = 3; // 名單外的公司只補抓最近幾天的內文，點開時仍會即時抓
+const RECLASSIFY_PER_RUN = 200;
 
 export default {
   async scheduled(event, env, ctx) {
@@ -19,7 +21,7 @@ export default {
     const hour = tw.getUTCHours();
     const daytime = hour >= 7;
     let jobs = [];
-    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : [];
+    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details", "reclassify"] : ["reclassify"];
     else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest"] : [];
     else if (event.cron === "40 14 * * *") jobs = ["daily", "pledges", "pretransfer", "watchlist", "cleanup"];
     else if (event.cron === "0 12 * * *") jobs = ["monthly"];
@@ -31,15 +33,16 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
-    const jobs = job === "all" ? ["watchlist", "realtime", "latest", "daily", "pledges", "pretransfer", "monthly", "details"] : job.split(",");
-    const report = await runJobs(env, jobs);
+    const jobs = job === "all" ? ["watchlist", "realtime", "latest", "daily", "pledges", "pretransfer", "monthly", "details", "reclassify"] : job.split(",");
+    // 手動執行 all 時同一次已經發了很多對外請求，內文少抓一點，避免超過免費方案上限
+    const report = await runJobs(env, jobs, { detailsLimit: job === "all" ? 10 : DETAILS_PER_RUN });
     return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
   },
 };
 
-const JOBS = { realtime, latest, details, daily, pledges, pretransfer, monthly, watchlist, cleanup };
+const JOBS = { realtime, latest, details, daily, pledges, pretransfer, monthly, watchlist, cleanup, reclassify };
 
-async function runJobs(env, jobs) {
+async function runJobs(env, jobs, opts = {}) {
   await ensureSchema(env);
   const report = {};
   for (const name of jobs) {
@@ -50,7 +53,7 @@ async function runJobs(env, jobs) {
     }
     const t0 = Date.now();
     try {
-      report[name] = await fn(env);
+      report[name] = await fn(env, opts);
       await setMeta(env, "last_" + name, JSON.stringify({ at: new Date().toISOString(), ok: true, result: report[name] }));
     } catch (err) {
       report[name] = { error: String(err.message || err) };
@@ -110,39 +113,67 @@ async function insertAnnouncements(env, kind, rows) {
   });
   const stmt = env.DB.prepare(
     `INSERT OR IGNORE INTO announcements
-     (id, kind, market, company_id, company_name, date, time, subject, category, detail_api, detail_params, url, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     (id, kind, market, company_id, company_name, date, time, subject, category, detail_api, detail_params, url, created_at, cat_ver)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   for (let i = 0; i < fresh.length; i += 50) {
     await env.DB.batch(
       fresh.slice(i, i + 50).map((r) =>
-        stmt.bind(r.id, kind, r.market, r.company_id, r.company_name, r.date, r.time, r.subject, M.classify(kind, r.subject), r.detail_api, r.detail_params, r.url, now)
+        stmt.bind(r.id, kind, r.market, r.company_id, r.company_name, r.date, r.time, r.subject, M.classify(kind, r.subject), r.detail_api, r.detail_params, r.url, now, M.RULES_VER)
       )
     );
   }
   return { fetched: rows.length, added: fresh.length };
 }
 
-/** 觀察名單＋持股公司的重大訊息：抓內文（說明全文、符合條款），持股優先 */
-async function details(env) {
+/**
+ * 重大訊息內文：抓到後依「符合條款」重新分類，並算出備註（金額／法說會時間地點／EPS）
+ * 優先順序：持股 → 觀察名單 → 其他公司（只補最近幾天）
+ */
+async function details(env, opts = {}) {
+  const limit = opts.detailsLimit || DETAILS_PER_RUN;
+  const since = M.isoDate(new Date(M.twNow().getTime() - DETAILS_OTHERS_DAYS * 86400e3));
+  const HELD = "a.company_id IN (SELECT company_id FROM holdings)";
+  const WATCH = "a.company_id IN (SELECT company_id FROM watchlist)";
   const { results } = await env.DB.prepare(
-    `SELECT a.rowid AS rid, a.detail_api, a.detail_params FROM announcements a
-     WHERE a.kind = 'material' AND a.detail_at IS NULL AND a.detail_api <> ''
-       AND (a.company_id IN (SELECT company_id FROM watchlist) OR a.company_id IN (SELECT company_id FROM holdings))
-     ORDER BY (a.company_id IN (SELECT company_id FROM holdings)) DESC, a.date DESC, a.time DESC LIMIT ?`
-  ).bind(DETAILS_PER_RUN).all();
+    `SELECT a.rowid AS rid, a.subject, a.detail_api, a.detail_params FROM announcements a
+     WHERE a.kind = 'material' AND a.detail_at IS NULL AND a.detail_api <> '' AND COALESCE(a.detail_tries, 0) < 3
+       AND (${HELD} OR ${WATCH} OR a.date >= ?)
+     ORDER BY (${HELD}) DESC, (${WATCH}) DESC, a.date DESC, a.time DESC LIMIT ?`
+  ).bind(since, limit).all();
+  const now = new Date().toISOString();
+  const updates = [];
   let ok = 0, failed = 0;
   for (const r of results) {
     try {
       const d = await M.fetchDetail(r.detail_api, r.detail_params);
-      await env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=? WHERE rowid=?")
-        .bind(d.speaker, d.clause, d.fact_date, d.detail, new Date().toISOString(), r.rid).run();
+      const category = M.classify("material", r.subject, d.clause);
+      updates.push(env.DB.prepare(
+        "UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?"
+      ).bind(d.speaker, d.clause, d.fact_date, d.detail, now, category, M.makeNote(category, d.detail), M.RULES_VER, r.rid));
       ok++;
     } catch {
+      updates.push(env.DB.prepare("UPDATE announcements SET detail_tries = COALESCE(detail_tries, 0) + 1 WHERE rowid=?").bind(r.rid));
       failed++;
     }
   }
+  if (updates.length) await env.DB.batch(updates);
   return { ok, failed };
+}
+
+/** 規則改版後，分批把舊資料重新分類、重算備註 */
+async function reclassify(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT rowid AS rid, kind, subject, clause, detail FROM announcements WHERE cat_ver IS NULL OR cat_ver < ? LIMIT ?"
+  ).bind(M.RULES_VER, RECLASSIFY_PER_RUN).all();
+  if (!results.length) return { updated: 0 };
+  const stmt = env.DB.prepare("UPDATE announcements SET category=?, note=?, cat_ver=? WHERE rowid=?");
+  const stmts = results.map((r) => {
+    const category = M.classify(r.kind, r.subject, r.clause);
+    return stmt.bind(category, r.kind === "material" ? M.makeNote(category, r.detail) : "", M.RULES_VER, r.rid);
+  });
+  for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
+  return { updated: results.length };
 }
 
 async function pledges(env) {
@@ -269,7 +300,7 @@ async function cleanup(env) {
 let schemaReady = false;
 async function ensureSchema(env) {
   if (schemaReady) return;
-  await env.DB.batch(M.SCHEMA.map((s) => env.DB.prepare(s)));
+  await M.migrate(env.DB);
   schemaReady = true;
 }
 

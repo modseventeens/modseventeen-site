@@ -130,6 +130,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 .grid .cat{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#0050c0;white-space:nowrap}
 .grid .up{color:#c62828}.grid .down{color:#2e7d32}
 .grid .subj{line-height:1.5}
+.grid td.memo{white-space:nowrap;font-variant-numeric:tabular-nums;color:#333}
 .held{display:inline-block;font-size:11px;font-weight:700;color:#8a5a00;background:#ffe9b0;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
 .grid tr.is-held td{background:#fffaf0}
 .grid tr.is-held.click:hover td{background:#fff3d6}
@@ -560,13 +561,16 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       var list = ms.category ? all.filter(function (r) { return r.category === ms.category; }) : all;
       mopsNote(ms.q ? "搜尋「" + esc(ms.q) + "」，近 180 天" : (d.date ? "資料日期 " + d.date : "") + "｜共 " + list.length + " 則");
       var showDate = !!ms.q;
+      var showMemo = s === "material";
       html = table(
-        (showDate ? "<th>日期</th>" : "") + "<th>時間</th><th>公司</th><th class=\"hide-sm\">類型</th><th>主旨</th>",
+        (showDate ? "<th>日期</th>" : "") + "<th>時間</th><th>公司</th><th class=\"hide-sm\">類型</th><th>主旨</th>" +
+          (showMemo ? '<th class="hide-sm">備註</th>' : ""),
         slicePage(list).map(function (r) {
           return '<tr class="click' + (r.held ? " is-held" : "") + '" data-rid="' + r.rid + '" data-url="' + esc(r.url || "") + '">' +
             (showDate ? '<td class="nw">' + esc(r.date) + "</td>" : "") +
             '<td class="nw">' + esc(String(r.time || "").slice(0, 5)) + '</td><td class="nw">' + co(r) + '</td>' +
-            '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td></tr>';
+            '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td>' +
+            (showMemo ? '<td class="memo hide-sm">' + esc(r.note || "") + '</td>' : "") + '</tr>';
         }),
         ms.q ? "找不到這家公司的資料" : "這一天沒有資料"
       );
@@ -635,6 +639,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       $("m-meta").innerHTML = "<span>" + esc(r.date) + " " + esc(String(r.time || "").slice(0, 5)) + "</span>" + co(r) +
         '<span class="chip">' + esc(r.category) + '</span>';
       var dl = [];
+      if (r.note) dl.push("<dt>備註</dt><dd><strong>" + esc(r.note) + "</strong></dd>");
       if (r.speaker) dl.push("<dt>發言人</dt><dd>" + esc(r.speaker) + "</dd>");
       if (r.clause) dl.push("<dt>符合條款</dt><dd>第 " + esc(r.clause) + " 款</dd>");
       if (r.fact_date) dl.push("<dt>事實發生日</dt><dd>" + esc(r.fact_date) + "</dd>");

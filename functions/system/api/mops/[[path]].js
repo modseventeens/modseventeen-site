@@ -12,7 +12,7 @@
  *
  * Pages 專案需要綁定 D1：變數名稱 DB。
  */
-import { fetchDetail, SCHEMA } from "../../../../worker/src/mops.js";
+import { fetchDetail, migrate, classify, makeNote, RULES_VER } from "../../../../worker/src/mops.js";
 
 const ALLOWED = ["modseventeen.com", "www.modseventeen.com", "localhost", "127.0.0.1"];
 let schemaReady = false;
@@ -23,7 +23,7 @@ export async function onRequestGet({ request, env, params }) {
   if (!env.DB) return json({ error: "Pages 專案還沒綁定 D1（變數名稱 DB）" }, 500);
   if (!schemaReady) {
     // 排程還沒跑過時，資料表可能還不存在
-    await env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
+    await migrate(env.DB);
     schemaReady = true;
   }
 
@@ -106,7 +106,7 @@ async function announcements(env, kind, date, opts) {
   if (opts.search) {
     // 搜尋公司：不限日期，最近 500 則
     rows = await env.DB.prepare(
-      `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
+      `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, note, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
        FROM announcements WHERE kind = ?${f.sql} ORDER BY date DESC, time DESC LIMIT 500`
     ).bind(kind, ...f.binds).all();
     return { kind, date: null, items: rows.results };
@@ -117,7 +117,7 @@ async function announcements(env, kind, date, opts) {
   }
   if (!date) return { kind, date: null, items: [] };
   rows = await env.DB.prepare(
-    `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
+    `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, note, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
      FROM announcements WHERE kind = ? AND date = ?${f.sql} ORDER BY time DESC`
   ).bind(kind, date, ...f.binds).all();
   return { kind, date, items: rows.results };
@@ -127,16 +127,18 @@ async function announcement(env, rid) {
   if (!/^\d+$/.test(rid)) throw new Error("編號格式不對");
   let row = await env.DB.prepare(
     `SELECT rowid AS rid, kind, market, company_id, company_name, date, time, subject, category, url,
-            detail_api, detail_params, speaker, clause, fact_date, detail, detail_at, company_id IN (SELECT company_id FROM holdings) AS held FROM announcements WHERE rowid = ?`
+            detail_api, detail_params, speaker, clause, fact_date, detail, detail_at, note, company_id IN (SELECT company_id FROM holdings) AS held FROM announcements WHERE rowid = ?`
   ).bind(+rid).first();
   if (!row) throw new Error("找不到這則資料");
   if (row.kind === "material" && !row.detail_at && row.detail_api) {
     // 名單外的公司：第一次點開才去觀測站抓內文，抓到就存起來
     const d = await fetchDetail(row.detail_api, row.detail_params);
     const at = new Date().toISOString();
-    await env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=? WHERE rowid=?")
-      .bind(d.speaker, d.clause, d.fact_date, d.detail, at, +rid).run();
-    row = { ...row, ...d, detail_at: at };
+    const category = classify("material", row.subject, d.clause);
+    const note = makeNote(category, d.detail);
+    await env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?")
+      .bind(d.speaker, d.clause, d.fact_date, d.detail, at, category, note, RULES_VER, +rid).run();
+    row = { ...row, ...d, detail_at: at, category, note };
   }
   delete row.detail_api;
   delete row.detail_params;
