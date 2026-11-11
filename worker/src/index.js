@@ -1,8 +1,8 @@
 // modseventeen-mops：定時抓公開資訊觀測站資料寫進 D1
 //
 // 排程（wrangler.toml 的 crons，時間是 UTC）：
-//   每 10 分鐘（整 10 分）   即時重大訊息 + 名單公司的內文（台灣 07:00–23:59）
-//   每 10 分鐘（錯開 5 分）  最新公告（台灣 07:00–23:59）
+//   每 10 分鐘（整 10 分）   即時重大訊息 + 重大訊息內文（台灣 07:00–23:59）
+//   每 10 分鐘（錯開 5 分）  最新公告（台灣 07:00–23:59）＋ 舊資料重新分類（全天）
 //   UTC 14:40（台灣 22:40） 當日重大訊息補抓、設質解質、事前申報、名單同步、清理 180 天前資料
 //   UTC 12:00（台灣 20:00） 月報（持股異動、大額取得／轉讓、質押比例），抓到過就不再抓
 //
@@ -11,9 +11,9 @@
 import * as M from "./mops.js";
 
 const KEEP_DAYS = 180;
-const DETAILS_PER_RUN = 30; // 每 10 分鐘抓幾則內文（免費方案每次最多 50 個對外請求）
+const DETAILS_PER_RUN = 12; // 每 10 分鐘抓幾則內文（量小一點，讓每次執行的 CPU 時間短一點）
 const DETAILS_OTHERS_DAYS = 3; // 名單外的公司只補抓最近幾天的內文，點開時仍會即時抓
-const RECLASSIFY_PER_RUN = 200;
+const RECLASSIFY_PER_RUN = 80;
 
 export default {
   async scheduled(event, env, ctx) {
@@ -21,8 +21,9 @@ export default {
     const hour = tw.getUTCHours();
     const daytime = hour >= 7;
     let jobs = [];
-    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details", "reclassify"] : ["reclassify"];
-    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest"] : [];
+    // 工作拆到兩個排程，每次執行的量比較小
+    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : [];
+    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest", "reclassify"] : ["reclassify"];
     else if (event.cron === "40 14 * * *") jobs = ["daily", "pledges", "pretransfer", "watchlist", "cleanup"];
     else if (event.cron === "0 12 * * *") jobs = ["monthly"];
     if (jobs.length) ctx.waitUntil(runJobs(env, jobs));
@@ -35,7 +36,7 @@ export default {
     const job = url.searchParams.get("job") || "all";
     const jobs = job === "all" ? ["watchlist", "realtime", "latest", "daily", "pledges", "pretransfer", "monthly", "details", "reclassify"] : job.split(",");
     // 手動執行 all 時同一次已經發了很多對外請求，內文少抓一點，避免超過免費方案上限
-    const report = await runJobs(env, jobs, { detailsLimit: job === "all" ? 10 : DETAILS_PER_RUN });
+    const report = await runJobs(env, jobs, { detailsLimit: job === "all" ? 5 : DETAILS_PER_RUN });
     return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
   },
 };
@@ -164,7 +165,7 @@ async function details(env, opts = {}) {
 /** 規則改版後，分批把舊資料重新分類、重算備註 */
 async function reclassify(env) {
   const { results } = await env.DB.prepare(
-    "SELECT rowid AS rid, kind, subject, clause, detail FROM announcements WHERE cat_ver IS NULL OR cat_ver < ? LIMIT ?"
+    "SELECT rowid AS rid, kind, subject, clause, detail FROM announcements WHERE cat_ver IS NULL OR cat_ver < ? ORDER BY date DESC, time DESC LIMIT ?"
   ).bind(M.RULES_VER, RECLASSIFY_PER_RUN).all();
   if (!results.length) return { updated: 0 };
   const stmt = env.DB.prepare("UPDATE announcements SET category=?, note=?, cat_ver=? WHERE rowid=?");
