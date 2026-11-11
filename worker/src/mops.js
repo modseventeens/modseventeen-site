@@ -364,10 +364,24 @@ export async function fetchIRB180(market, monthDate) {
   return out;
 }
 
-/** 觀察名單：Google Sheet「發佈到網路」的 CSV，取第一欄的股號 */
+/** 持股分頁的 CSV 網址：沿用觀察名單發佈的網址，只換 gid（分頁編號） */
+export const HOLDINGS_GID = "1672521628"; // 「投資系統_觀察名單」裡「持股」分頁的編號
+export function holdingsCsvUrl(env) {
+  if (env.HOLDINGS_CSV_URL) return env.HOLDINGS_CSV_URL;
+  if (!env.WATCHLIST_CSV_URL) return "";
+  const u = new URL(env.WATCHLIST_CSV_URL);
+  u.searchParams.set("gid", env.HOLDINGS_GID || HOLDINGS_GID);
+  u.searchParams.set("single", "true");
+  u.searchParams.set("output", "csv");
+  return u.toString();
+}
+
+/** 觀察名單／持股：Google Sheet「發佈到網路」的 CSV，取第一欄的股號 */
 export async function fetchWatchlist(csvUrl) {
   const r = await fetch(csvUrl, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error("名單 CSV HTTP " + r.status);
+  // 分頁沒有發佈時 Google 會回一個網頁而不是 CSV，不能當成空名單
+  if (/text\/html/i.test(r.headers.get("Content-Type") || "")) throw new Error("讀到的是網頁不是 CSV，請確認這個分頁有「發佈到網路」");
   const text = await r.text();
   const out = new Map();
   for (const line of text.split(/\r?\n/)) {
@@ -426,5 +440,6 @@ export const SCHEMA = [
     id TEXT PRIMARY KEY, ym TEXT, market TEXT, company_id TEXT, company_name TEXT, ratio REAL)`,
   `CREATE INDEX IF NOT EXISTS idx_pr_ym ON pledge_ratio(ym)`,
   `CREATE TABLE IF NOT EXISTS watchlist (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
+  `CREATE TABLE IF NOT EXISTS holdings (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`,
 ];

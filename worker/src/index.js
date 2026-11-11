@@ -123,13 +123,13 @@ async function insertAnnouncements(env, kind, rows) {
   return { fetched: rows.length, added: fresh.length };
 }
 
-/** 名單公司的重大訊息：抓內文（說明全文、符合條款） */
+/** 觀察名單＋持股公司的重大訊息：抓內文（說明全文、符合條款），持股優先 */
 async function details(env) {
   const { results } = await env.DB.prepare(
     `SELECT a.rowid AS rid, a.detail_api, a.detail_params FROM announcements a
-     JOIN watchlist w ON w.company_id = a.company_id
      WHERE a.kind = 'material' AND a.detail_at IS NULL AND a.detail_api <> ''
-     ORDER BY a.date DESC, a.time DESC LIMIT ?`
+       AND (a.company_id IN (SELECT company_id FROM watchlist) OR a.company_id IN (SELECT company_id FROM holdings))
+     ORDER BY (a.company_id IN (SELECT company_id FROM holdings)) DESC, a.date DESC, a.time DESC LIMIT ?`
   ).bind(DETAILS_PER_RUN).all();
   let ok = 0, failed = 0;
   for (const r of results) {
@@ -215,15 +215,39 @@ async function monthly(env) {
 }
 
 async function watchlist(env) {
-  if (!env.WATCHLIST_CSV_URL) return { skipped: "沒有設定 WATCHLIST_CSV_URL" };
-  const list = await M.fetchWatchlist(env.WATCHLIST_CSV_URL);
-  if (!list.length) return { skipped: "名單是空的，保留原本的名單" };
+  const result = {};
+  // 觀察名單：讀到空的就保留原本的，避免發佈設定出錯時把名單清空
+  if (!env.WATCHLIST_CSV_URL) result.watchlist = { skipped: "沒有設定 WATCHLIST_CSV_URL" };
+  else {
+    try {
+      const list = await M.fetchWatchlist(env.WATCHLIST_CSV_URL);
+      result.watchlist = list.length ? { count: await replaceList(env, "watchlist", list) } : { skipped: "名單是空的，保留原本的名單" };
+    } catch (err) {
+      result.watchlist = { error: String(err.message || err) };
+    }
+  }
+  // 持股：可以是空的（全部賣出），但讀取失敗時保留原本的
+  const url = M.holdingsCsvUrl(env);
+  if (!url) result.holdings = { skipped: "沒有持股名單網址" };
+  else {
+    try {
+      const list = await M.fetchWatchlist(url);
+      result.holdings = { count: await replaceList(env, "holdings", list) };
+    } catch (err) {
+      result.holdings = { error: String(err.message || err) };
+    }
+  }
+  if (result.watchlist.error && result.holdings.error) throw new Error(`觀察名單：${result.watchlist.error}；持股：${result.holdings.error}`);
+  return result;
+}
+
+async function replaceList(env, table, list) {
   const now = new Date().toISOString();
-  const stmt = env.DB.prepare("INSERT INTO watchlist (company_id, name, note, updated_at) VALUES (?, ?, ?, ?)");
-  const stmts = [env.DB.prepare("DELETE FROM watchlist")];
+  const stmt = env.DB.prepare(`INSERT INTO ${table} (company_id, name, note, updated_at) VALUES (?, ?, ?, ?)`);
+  const stmts = [env.DB.prepare(`DELETE FROM ${table}`)];
   list.forEach((w) => stmts.push(stmt.bind(w.company_id, w.name, w.note, now)));
   await env.DB.batch(stmts);
-  return { count: list.length };
+  return list.length;
 }
 
 async function cleanup(env) {

@@ -15,7 +15,7 @@ crons = [
 [[d1_databases]]
 binding = "DB"
 database_name = "modseventeen-mops"
-database_id = "e13fc950-9849-4771-9a4f-dca17cb05ab7"
+database_id = "貼上 D1 資料庫的 Database ID"
 
 # 以下兩個請在 Cloudflare 後台設成 Secret（不要寫在這裡，這個檔案會被網站公開）：
 #   WATCHLIST_CSV_URL  Google Sheet「發佈到網路」的 CSV 網址

@@ -130,6 +130,9 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 .grid .cat{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#0050c0;white-space:nowrap}
 .grid .up{color:#c62828}.grid .down{color:#2e7d32}
 .grid .subj{line-height:1.5}
+.held{display:inline-block;font-size:11px;font-weight:700;color:#8a5a00;background:#ffe9b0;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.grid tr.is-held td{background:#fffaf0}
+.grid tr.is-held.click:hover td{background:#fff3d6}
 .section-title{font-size:16px;font-weight:700;margin:26px 0 8px}
 .section-title small{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
 .detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin-bottom:16px}
@@ -180,7 +183,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     </div>
     <div class="toolbar" id="mops-toolbar">
       <span class="seg" id="mops-scope">
-        <button data-scope="watch">觀察名單</button><button data-scope="all">全部公司</button>
+        <button data-scope="holdings">持股</button><button data-scope="watch">觀察名單</button><button data-scope="all">全部公司</button>
       </span>
       <label>市場 <select id="mops-market"><option value="">全部</option><option value="sii">上市</option><option value="otc">上櫃</option></select></label>
       <label data-for="day">類型 <select id="mops-category"><option value="">全部</option></select></label>
@@ -437,7 +440,8 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
   }
   function co(r) {
     return '<span class="co"><b>' + esc(r.company_id) + '</b>' + esc(r.company_name || "") +
-      (r.market ? '<span class="mk">' + (MK[r.market] || esc(r.market)) + '</span>' : "") + '</span>';
+      (r.market ? '<span class="mk">' + (MK[r.market] || esc(r.market)) + '</span>' : "") +
+      (r.held ? '<span class="held">持股</span>' : "") + '</span>';
   }
   function fmtTime(iso) {
     if (!iso) return "";
@@ -466,6 +470,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     [].forEach.call(document.querySelectorAll("#mops-scope button"), function (b) {
       b.setAttribute("aria-pressed", b.dataset.scope === ms.scope);
       if (b.dataset.scope === "watch") b.textContent = "觀察名單（" + ms.meta.watchCount + "）";
+      if (b.dataset.scope === "holdings") b.textContent = "持股（" + (ms.meta.holdingsCount || 0) + "）";
     });
     var f = SUBS[ms.sub].filter;
     if (f === "day") $("mops-date").value = ms.dates[ms.sub] || "";
@@ -507,8 +512,10 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 
   function mopsNote(extra) {
     var m = ms.meta, job = m.updated && m.updated[SUBS[ms.sub].job];
-    var left = (ms.scope === "watch" ? "觀察名單 " + m.watchCount + " 家" : "全部公司（上市＋上櫃）") + (extra ? "｜" + extra : "");
+    var scopeText = { holdings: "持股 " + (m.holdingsCount || 0) + " 家", watch: "觀察名單 " + m.watchCount + " 家", all: "全部公司（上市＋上櫃）" }[ms.scope];
+    var left = scopeText + (extra ? "｜" + extra : "");
     if (ms.scope === "watch" && !m.watchCount) left = '<span class="warn">觀察名單還是空的，請先在 Google Sheet 加入股號</span>';
+    if (ms.scope === "holdings" && !m.holdingsCount) left = '<span class="warn">持股名單還沒讀到，請確認 Google Sheet「持股」分頁有發佈</span>';
     var right = job ? (job.ok ? "最後更新 " + fmtTime(job.at) : '<span class="warn">上次更新失敗（' + fmtTime(job.at) + '）：' + esc(job.error || "") + '</span>') : "尚未更新";
     $("mops-note").innerHTML = "<span>" + left + "</span><span>" + right + "</span>";
   }
@@ -533,6 +540,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     h += '<button data-p="' + (p + 1) + '"' + (p === pages ? " disabled" : "") + '>下一頁</button>';
     $("mops-pager").innerHTML = h;
   }
+  function tr(r) { return r.held ? '<tr class="is-held">' : "<tr>"; }
   function table(head, rows, empty) {
     if (!rows.length) return '<div class="state">' + (empty || "沒有資料") + '</div>';
     return '<table class="grid"><thead><tr>' + head + '</tr></thead><tbody>' + rows.join("") + '</tbody></table>';
@@ -555,7 +563,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       html = table(
         (showDate ? "<th>日期</th>" : "") + "<th>時間</th><th>公司</th><th class=\"hide-sm\">類型</th><th>主旨</th>",
         slicePage(list).map(function (r) {
-          return '<tr class="click" data-rid="' + r.rid + '" data-url="' + esc(r.url || "") + '">' +
+          return '<tr class="click' + (r.held ? " is-held" : "") + '" data-rid="' + r.rid + '" data-url="' + esc(r.url || "") + '">' +
             (showDate ? '<td class="nw">' + esc(r.date) + "</td>" : "") +
             '<td class="nw">' + esc(String(r.time || "").slice(0, 5)) + '</td><td class="nw">' + co(r) + '</td>' +
             '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td></tr>';
@@ -567,7 +575,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       mopsNote(ms.month + " 申報｜共 " + pt.length + " 筆｜事前申報是「預定」轉讓，不代表已經賣出");
       html = table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th>方式</th><th class="n">預定轉讓（張）</th><th class="n hide-sm">轉讓後持股（張）</th><th class="hide-sm">有效期間</th>',
         slicePage(pt).map(function (r) {
-          return '<tr><td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
+          return tr(r) + '<td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
             '</td><td>' + esc(r.method) + (r.transferee ? '<br><small style="color:var(--muted)">' + esc(r.transferee) + '</small>' : "") + '</td><td class="n">' + lots(r.shares) +
             '</td><td class="n hide-sm">' + lots(r.after) + '</td><td class="nw hide-sm">' + esc(r.period) + '</td></tr>';
         }), "這個月沒有申報");
@@ -578,13 +586,13 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       html = '<div class="section-title">設質解質逐筆<small>內部人每次設定或解除質押的公告</small></div>' +
         table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th class="n">設質（張）</th><th class="n">解質（張）</th><th class="n hide-sm">累積設質（張）</th><th class="hide-sm">質權人</th>',
           slicePage(ev).map(function (r) {
-            return '<tr><td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
+            return tr(r) + '<td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
               '</td><td class="n up">' + (r.pledged ? lots(r.pledged) : "") + '</td><td class="n down">' + (r.released ? lots(r.released) : "") +
               '</td><td class="n hide-sm">' + lots(r.accumulated) + '</td><td class="hide-sm">' + esc(r.pledgee) + '</td></tr>';
           }), "這個月沒有設質解質公告") +
         '<div class="section-title">董監質押比例' + (d.ratio && d.ratio.ym ? '<small>' + d.ratio.ym + ' 月報' + (ms.scope === "all" && !ms.q ? "，只列 50% 以上" : "") + '</small>' : "") + '</div>' +
         table('<th>公司</th><th class="n">設質股數占董監持股</th>', rt.map(function (r) {
-          return '<tr><td class="nw">' + co(r) + '</td><td class="n' + (r.ratio >= 50 ? " up" : "") + '">' + r.ratio.toFixed(2) + '%</td></tr>';
+          return tr(r) + '<td class="nw">' + co(r) + '</td><td class="n' + (r.ratio >= 50 ? " up" : "") + '">' + r.ratio.toFixed(2) + '%</td></tr>';
         }), "沒有董監設質的公司");
     } else {
       var ch = byMarket(d.changes || []);
@@ -593,7 +601,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       var tra = lg.filter(function (r) { return r.direction === "transfer"; });
       mopsNote(d.ym ? d.ym + " 月報（次月 15–20 日公布）" : "月報尚未抓到");
       var largeRow = function (r) {
-        return '<tr><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) + '</td><td class="n">' + lots(r.shares) + '</td></tr>';
+        return tr(r) + '<td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) + '</td><td class="n">' + lots(r.shares) + '</td></tr>';
       };
       var lhead = '<th>公司</th><th>身分</th><th>姓名</th><th class="n">股數（張）</th>';
       html = '<div class="section-title">大額取得<small>單人取得 100 萬股以上</small></div>' + table(lhead, acq.map(largeRow), "沒有") +
@@ -601,7 +609,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
         '<div class="section-title">董監持股增減<small>依淨增加排序，共 ' + ch.length + ' 家</small></div>' +
         table('<th>公司</th><th class="n">董監增加（張）</th><th class="n">董監減少（張）</th><th class="n">董監持股比例</th><th class="n hide-sm">經理人持股（張）</th>',
           slicePage(ch).map(function (r) {
-            return '<tr><td class="nw">' + co(r) + '</td><td class="n up">' + (r.ds_increase ? lots(r.ds_increase) : "") + '</td><td class="n down">' +
+            return tr(r) + '<td class="nw">' + co(r) + '</td><td class="n up">' + (r.ds_increase ? lots(r.ds_increase) : "") + '</td><td class="n down">' +
               (r.ds_decrease ? lots(r.ds_decrease) : "") + '</td><td class="n">' + (+r.ds_pct).toFixed(2) + '%</td><td class="n hide-sm">' + lots(r.mgr_holding) + '</td></tr>';
           }), "這個月沒有董監持股變動");
     }

@@ -3,7 +3,8 @@
  * 路徑在 /system 底下，受 Cloudflare Access「system*」規則保護。
  *
  *   meta                         更新時間、名單家數、可選月份
- *   announcements?kind=material|latest&date=YYYY-MM-DD&scope=watch|all&q=
+ *   announcements?kind=material|latest&date=YYYY-MM-DD&scope=holdings|watch|all&q=
+ *   （每筆資料都帶 held：是否為持股）
  *   announcements/<rid>          單則內容（名單外的重大訊息會即時去觀測站抓內文）
  *   pretransfers?month=YYYY-MM&scope&q
  *   pledges?month=YYYY-MM&scope&q
@@ -29,7 +30,7 @@ export async function onRequestGet({ request, env, params }) {
   const seg = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
   const q = url.searchParams;
   const opts = {
-    scope: q.get("scope") === "all" ? "all" : "watch",
+    scope: ["all", "holdings"].includes(q.get("scope")) ? q.get("scope") : "watch",
     search: (q.get("q") || "").trim(),
   };
   try {
@@ -61,6 +62,7 @@ function filters(opts, alias = "") {
   const parts = [];
   const binds = [];
   if (opts.scope === "watch") parts.push(`${p}company_id IN (SELECT company_id FROM watchlist)`);
+  if (opts.scope === "holdings") parts.push(`${p}company_id IN (SELECT company_id FROM holdings)`);
   if (opts.search) {
     if (/^\d{4,6}[A-Za-z]?$/.test(opts.search)) {
       parts.push(`${p}company_id = ?`);
@@ -79,8 +81,9 @@ const validYm = (s) => /^\d{4}-\d{2}$/.test(s || "");
 /* ---------------- 各端點 ---------------- */
 
 async function meta(env) {
-  const [watch, dates, ims, runs] = await env.DB.batch([
+  const [watch, hold, dates, ims, runs] = await env.DB.batch([
     env.DB.prepare("SELECT COUNT(*) AS n FROM watchlist"),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM holdings"),
     env.DB.prepare("SELECT kind, MAX(date) AS d FROM announcements GROUP BY kind"),
     env.DB.prepare("SELECT DISTINCT ym FROM insider_monthly ORDER BY ym DESC"),
     env.DB.prepare("SELECT key, value FROM meta WHERE key LIKE 'last_%'"),
@@ -94,7 +97,7 @@ async function meta(env) {
       updated[r.key.slice(5)] = { at: v.at, ok: v.ok, error: v.error };
     } catch {}
   });
-  return { watchCount: watch.results[0].n, latestDate, insiderMonths: ims.results.map((r) => r.ym), updated };
+  return { watchCount: watch.results[0].n, holdingsCount: hold.results[0].n, latestDate, insiderMonths: ims.results.map((r) => r.ym), updated };
 }
 
 async function announcements(env, kind, date, opts) {
@@ -103,7 +106,7 @@ async function announcements(env, kind, date, opts) {
   if (opts.search) {
     // 搜尋公司：不限日期，最近 500 則
     rows = await env.DB.prepare(
-      `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail
+      `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
        FROM announcements WHERE kind = ?${f.sql} ORDER BY date DESC, time DESC LIMIT 500`
     ).bind(kind, ...f.binds).all();
     return { kind, date: null, items: rows.results };
@@ -114,7 +117,7 @@ async function announcements(env, kind, date, opts) {
   }
   if (!date) return { kind, date: null, items: [] };
   rows = await env.DB.prepare(
-    `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail
+    `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
      FROM announcements WHERE kind = ? AND date = ?${f.sql} ORDER BY time DESC`
   ).bind(kind, date, ...f.binds).all();
   return { kind, date, items: rows.results };
@@ -124,7 +127,7 @@ async function announcement(env, rid) {
   if (!/^\d+$/.test(rid)) throw new Error("編號格式不對");
   let row = await env.DB.prepare(
     `SELECT rowid AS rid, kind, market, company_id, company_name, date, time, subject, category, url,
-            detail_api, detail_params, speaker, clause, fact_date, detail, detail_at FROM announcements WHERE rowid = ?`
+            detail_api, detail_params, speaker, clause, fact_date, detail, detail_at, company_id IN (SELECT company_id FROM holdings) AS held FROM announcements WHERE rowid = ?`
   ).bind(+rid).first();
   if (!row) throw new Error("找不到這則資料");
   if (row.kind === "material" && !row.detail_at && row.detail_api) {
@@ -150,7 +153,7 @@ async function pretransfers(env, month, opts) {
   const f = filters(opts);
   const cond = range ? " AND report_date BETWEEN ? AND ?" : "";
   const rows = await env.DB.prepare(
-    `SELECT market, report_date, company_id, company_name, role, holder, method, shares, holding, after, transferee, period
+    `SELECT market, report_date, company_id, company_name, role, holder, method, shares, holding, after, transferee, period, company_id IN (SELECT company_id FROM holdings) AS held
      FROM pretransfers WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, company_id LIMIT 2000`
   ).bind(...(range || []), ...f.binds).all();
   return { month: month || null, items: rows.results };
@@ -162,7 +165,7 @@ async function pledges(env, month, opts) {
   const cond = range ? " AND report_date BETWEEN ? AND ?" : "";
   const [events, ymRow] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT market, company_id, company_name, role, holder, event_date, pledged, released, accumulated, pledgee, report_date
+      `SELECT market, company_id, company_name, role, holder, event_date, pledged, released, accumulated, pledgee, report_date, company_id IN (SELECT company_id FROM holdings) AS held
        FROM pledges WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, event_date DESC LIMIT 2000`
     ).bind(...(range || []), ...f.binds),
     env.DB.prepare("SELECT MAX(ym) AS ym FROM pledge_ratio" + (month && validYm(month) ? " WHERE ym <= ?" : "")).bind(...(month && validYm(month) ? [month] : [])),
@@ -171,9 +174,9 @@ async function pledges(env, month, opts) {
   let ratio = [];
   if (ym) {
     // 全部公司時只列 50% 以上，避免列表太長；名單內則全部列出
-    const minRatio = opts.scope === "all" && !opts.search ? 50 : 0;
+    const minRatio = opts.scope === "all" && !opts.search ? 50 : 0; // 觀察名單／持股範圍全部列出
     const r = await env.DB.prepare(
-      `SELECT market, company_id, company_name, ratio FROM pledge_ratio WHERE ym = ? AND ratio >= ?${f.sql} ORDER BY ratio DESC`
+      `SELECT market, company_id, company_name, ratio, company_id IN (SELECT company_id FROM holdings) AS held FROM pledge_ratio WHERE ym = ? AND ratio >= ?${f.sql} ORDER BY ratio DESC`
     ).bind(ym, minRatio, ...f.binds).all();
     ratio = r.results;
   }
@@ -189,12 +192,12 @@ async function insiders(env, ym, opts) {
   const f = filters(opts);
   const [changes, large] = await env.DB.batch([
     env.DB.prepare(
-      `SELECT market, company_id, company_name, issued, ds_increase, ds_decrease, ds_holding, ds_pct, mgr_holding, major_holding
+      `SELECT market, company_id, company_name, issued, ds_increase, ds_decrease, ds_holding, ds_pct, mgr_holding, major_holding, company_id IN (SELECT company_id FROM holdings) AS held
        FROM insider_monthly WHERE ym = ? AND (ds_increase > 0 OR ds_decrease > 0)${f.sql}
        ORDER BY (ds_increase - ds_decrease) DESC`
     ).bind(ym, ...f.binds),
     env.DB.prepare(
-      `SELECT market, direction, company_id, company_name, role, holder, shares FROM insider_large
+      `SELECT market, direction, company_id, company_name, role, holder, shares, company_id IN (SELECT company_id FROM holdings) AS held FROM insider_large
        WHERE ym = ?${f.sql} ORDER BY direction, shares DESC`
     ).bind(ym, ...f.binds),
   ]);
