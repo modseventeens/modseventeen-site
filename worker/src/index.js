@@ -8,6 +8,7 @@
 //
 // 手動執行（第一次部署後補資料、或除錯用）：
 //   https://<worker 網址>/run?job=realtime|latest|details|daily|pledges|pretransfer|monthly|watchlist|cleanup|all&key=<RUN_KEY>
+//   回補各季累計 EPS：curl -X POST "https://<worker 網址>/run?job=importeps&key=<RUN_KEY>" --data-binary @eps.csv
 import * as M from "./mops.js";
 
 const KEEP_DAYS = 180;
@@ -34,6 +35,13 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
+    if (job === "importeps") {
+      // 回補各季累計 EPS：POST 一個 CSV（年度,季別,股號,累計EPS，一行一筆）
+      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
+      await ensureSchema(env);
+      const report = await importEps(env, await request.text());
+      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
     const jobs = job === "all" ? ["watchlist", "realtime", "latest", "daily", "pledges", "pretransfer", "monthly", "details", "reclassify"] : job.split(",");
     // 手動執行 all 時同一次已經發了很多對外請求，內文少抓一點，避免超過免費方案上限
     const report = await runJobs(env, jobs, { detailsLimit: job === "all" ? 5 : DETAILS_PER_RUN });
@@ -137,27 +145,33 @@ async function details(env, opts = {}) {
   const HELD = "a.company_id IN (SELECT company_id FROM holdings)";
   const WATCH = "a.company_id IN (SELECT company_id FROM watchlist)";
   const { results } = await env.DB.prepare(
-    `SELECT a.rowid AS rid, a.subject, a.detail_api, a.detail_params FROM announcements a
+    `SELECT a.rowid AS rid, a.company_id, a.subject, a.detail_api, a.detail_params FROM announcements a
      WHERE a.kind = 'material' AND a.detail_at IS NULL AND a.detail_api <> '' AND COALESCE(a.detail_tries, 0) < 3
        AND (${HELD} OR ${WATCH} OR a.date >= ?)
      ORDER BY (${HELD}) DESC, (${WATCH}) DESC, a.date DESC, a.time DESC LIMIT ?`
   ).bind(since, limit).all();
   const now = new Date().toISOString();
   const updates = [];
+  const done = [];
   let ok = 0, failed = 0;
   for (const r of results) {
     try {
       const d = await M.fetchDetail(r.detail_api, r.detail_params);
       const category = M.classify("material", r.subject, d.clause);
-      updates.push(env.DB.prepare(
-        "UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?"
-      ).bind(d.speaker, d.clause, d.fact_date, d.detail, now, category, M.makeNote(category, d.detail), M.RULES_VER, r.rid));
+      done.push({ r, d, company_id: r.company_id, category, detail: d.detail, note: M.makeNote(category, d.detail) });
       ok++;
     } catch {
       updates.push(env.DB.prepare("UPDATE announcements SET detail_tries = COALESCE(detail_tries, 0) + 1 WHERE rowid=?").bind(r.rid));
       failed++;
     }
   }
+  const epsStmts = await M.applyEpsNotes(env.DB, done);
+  for (const x of done) {
+    updates.push(env.DB.prepare(
+      "UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?"
+    ).bind(x.d.speaker, x.d.clause, x.d.fact_date, x.d.detail, now, x.category, x.note, M.RULES_VER, x.r.rid));
+  }
+  updates.push(...epsStmts);
   if (updates.length) await env.DB.batch(updates);
   return { ok, failed };
 }
@@ -165,14 +179,16 @@ async function details(env, opts = {}) {
 /** 規則改版後，分批把舊資料重新分類、重算備註 */
 async function reclassify(env) {
   const { results } = await env.DB.prepare(
-    "SELECT rowid AS rid, kind, subject, clause, detail FROM announcements WHERE cat_ver IS NULL OR cat_ver < ? ORDER BY date DESC, time DESC LIMIT ?"
+    "SELECT rowid AS rid, kind, company_id, subject, clause, detail FROM announcements WHERE cat_ver IS NULL OR cat_ver < ? ORDER BY date DESC, time DESC LIMIT ?"
   ).bind(M.RULES_VER, RECLASSIFY_PER_RUN).all();
   if (!results.length) return { updated: 0 };
   const stmt = env.DB.prepare("UPDATE announcements SET category=?, note=?, cat_ver=? WHERE rowid=?");
-  const stmts = results.map((r) => {
+  const items = results.map((r) => {
     const category = M.classify(r.kind, r.subject, r.clause);
-    return stmt.bind(category, r.kind === "material" ? M.makeNote(category, r.detail) : "", M.RULES_VER, r.rid);
+    return { r, company_id: r.company_id, category, detail: r.detail, note: r.kind === "material" ? M.makeNote(category, r.detail) : "" };
   });
+  const epsStmts = await M.applyEpsNotes(env.DB, items.filter((x) => x.r.kind === "material"));
+  const stmts = items.map((x) => stmt.bind(x.category, x.note, M.RULES_VER, x.r.rid)).concat(epsStmts);
   for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
   return { updated: results.length };
 }
@@ -280,6 +296,26 @@ async function replaceList(env, table, list) {
   list.forEach((w) => stmts.push(stmt.bind(w.company_id, w.name, w.note, now)));
   await env.DB.batch(stmts);
   return list.length;
+}
+
+/** 匯入回補的累計 EPS，並讓財報備註全部重算 */
+async function importEps(env, text) {
+  const rows = M.parseEpsCsv(text);
+  if (!rows.length) return { imported: 0, error: "檔案裡沒有資料" };
+  const now = new Date().toISOString();
+  const stmts = [];
+  for (let i = 0; i < rows.length; i += 400) {
+    const values = rows.slice(i, i + 400).map((r) => `('${r.code}',${r.year},${r.q},${r.eps},'mops','${now}')`).join(",");
+    stmts.push(env.DB.prepare(
+      `INSERT INTO eps_cum (company_id, year, quarter, eps, source, updated_at) VALUES ${values}
+       ON CONFLICT(company_id, year, quarter) DO UPDATE SET eps=excluded.eps, source=excluded.source, updated_at=excluded.updated_at`
+    ));
+  }
+  stmts.push(env.DB.prepare("UPDATE announcements SET cat_ver = NULL WHERE category = '財報營收'"));
+  const res = await env.DB.batch(stmts);
+  const quarters = {};
+  for (const r of rows) quarters[`${r.year}Q${r.q}`] = (quarters[`${r.year}Q${r.q}`] || 0) + 1;
+  return { imported: rows.length, quarters, renote: res.at(-1).meta?.changes || 0 };
 }
 
 async function cleanup(env) {

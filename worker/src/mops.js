@@ -291,6 +291,67 @@ export function epsNote(detail) {
   return `EPS ${v}`;
 }
 
+/** 財報的報導期間與累計 EPS：{ year: 115, q: 3, eps: 1.23 }；不是 1 月起算（非曆年制）就回 null */
+export function epsInfo(detail) {
+  const t = String(detail || "");
+  const p = t.match(/(\d{3})\/(\d{1,2})\/\d{1,2}\s*[~～至-]\s*(\d{3})\/(\d{1,2})\/\d{1,2}/);
+  const e = epsNote(t);
+  if (!p || !e) return null;
+  const startM = +p[2], endY = +p[3], endM = +p[4];
+  if (startM !== 1 || +p[1] !== endY || endM % 3 !== 0) return null;
+  return { year: endY, q: endM / 3, eps: +e.slice(4) };
+}
+
+/** 用各季累計 EPS 算單季：Q1、Q2、Q3… 缺資料的那季顯示「—」 */
+export function quarterlyNote(q, cums) {
+  const has = (k) => typeof cums[k] === "number" && !Number.isNaN(cums[k]);
+  const out = [];
+  for (let k = 1; k <= q; k++) {
+    if (!has(k) || (k > 1 && !has(k - 1))) out.push("—");
+    else out.push((Math.round(((k > 1 ? cums[k] - cums[k - 1] : cums[k]) + 1e-9) * 100) / 100).toFixed(2));
+  }
+  // 一季都算不出來（之前各季都還沒資料）就先顯示累計數，等回補後再重算
+  if (out.every((x) => x === "—")) return typeof cums[q] === "number" ? `累計 EPS ${cums[q]}` : "";
+  return out.join("、");
+}
+
+/**
+ * 財報備註要用到之前各季的累計 EPS。
+ * items: [{ company_id, category, detail, note }]，會把 note 換成單季 EPS，
+ * 並回傳要寫進 eps_cum 的語句（和其他更新一起 batch 執行）。
+ */
+export async function applyEpsNotes(DB, items) {
+  const targets = items.map((it) => ({ it, info: it.category === "財報營收" ? epsInfo(it.detail) : null })).filter((x) => x.info);
+  if (!targets.length) return [];
+  const ids = [...new Set(targets.map((x) => x.it.company_id))];
+  const years = [...new Set(targets.map((x) => x.info.year))];
+  const { results } = await DB.prepare(
+    `SELECT company_id, year, quarter, eps FROM eps_cum WHERE company_id IN (${ids.map(() => "?").join(",")}) AND year IN (${years.map(() => "?").join(",")})`
+  ).bind(...ids, ...years).all();
+  const map = {};
+  const key = (c, y) => c + "|" + y;
+  for (const r of results) (map[key(r.company_id, r.year)] ||= {})[r.quarter] = r.eps;
+  for (const { it, info } of targets) (map[key(it.company_id, info.year)] ||= {})[info.q] = info.eps;
+  const now = new Date().toISOString();
+  const stmt = DB.prepare(
+    "INSERT INTO eps_cum (company_id, year, quarter, eps, source, updated_at) VALUES (?, ?, ?, ?, 'ann', ?) ON CONFLICT(company_id, year, quarter) DO UPDATE SET eps=excluded.eps, source=excluded.source, updated_at=excluded.updated_at"
+  );
+  return targets.map(({ it, info }) => {
+    it.note = quarterlyNote(info.q, map[key(it.company_id, info.year)]);
+    return stmt.bind(it.company_id, info.year, info.q, info.eps, now);
+  });
+}
+
+/** 回補檔：年度,季別,股號,累計EPS（一行一筆）；格式不對的行略過 */
+export function parseEpsCsv(text) {
+  const out = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const m = line.trim().match(/^(\d{3}),([1-4]),([0-9A-Z]{4,6}),(-?\d+(?:\.\d+)?)$/);
+    if (m) out.push({ year: +m[1], q: +m[2], code: m[3], eps: +m[4] });
+  }
+  return out;
+}
+
 /** 依類型產生備註；其他類型留空 */
 export function makeNote(category, detail) {
   if (!detail) return "";
@@ -639,4 +700,7 @@ export const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS watchlist (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS holdings (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`,
+  // 各季累計 EPS（算單季用），不受 180 天清除影響
+  `CREATE TABLE IF NOT EXISTS eps_cum (company_id TEXT, year INTEGER, quarter INTEGER, eps REAL, source TEXT, updated_at TEXT,
+    PRIMARY KEY (company_id, year, quarter))`,
 ];

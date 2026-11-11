@@ -12,7 +12,7 @@
  *
  * Pages 專案需要綁定 D1：變數名稱 DB。
  */
-import { fetchDetail, migrate, classify, makeNote, RULES_VER } from "../../../../worker/src/mops.js";
+import { fetchDetail, migrate, classify, makeNote, applyEpsNotes, RULES_VER } from "../../../../worker/src/mops.js";
 
 const ALLOWED = ["modseventeen.com", "www.modseventeen.com", "localhost", "127.0.0.1"];
 let schemaReady = false;
@@ -135,9 +135,14 @@ async function announcement(env, rid) {
     const d = await fetchDetail(row.detail_api, row.detail_params);
     const at = new Date().toISOString();
     const category = classify("material", row.subject, d.clause);
-    const note = makeNote(category, d.detail);
-    await env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?")
-      .bind(d.speaker, d.clause, d.fact_date, d.detail, at, category, note, RULES_VER, +rid).run();
+    const item = { company_id: row.company_id, category, detail: d.detail, note: makeNote(category, d.detail) };
+    const epsStmts = await applyEpsNotes(env.DB, [item]);
+    const note = item.note;
+    await env.DB.batch([
+      env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?")
+        .bind(d.speaker, d.clause, d.fact_date, d.detail, at, category, note, RULES_VER, +rid),
+      ...epsStmts,
+    ]);
     row = { ...row, ...d, detail_at: at, category, note };
   }
   delete row.detail_api;
