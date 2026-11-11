@@ -3,6 +3,10 @@ name = "modseventeen-mops"
 main = "src/index.js"
 compatibility_date = "2026-11-01"
 
+# 每次從 GitHub 自動部署時：保持 workers.dev 網址開啟、保留後台設定的變數
+workers_dev = true
+keep_vars = true
+
 # 時間是 UTC（台灣 = UTC+8）
 [triggers]
 crons = [
@@ -15,7 +19,7 @@ crons = [
 [[d1_databases]]
 binding = "DB"
 database_name = "modseventeen-mops"
-database_id = "貼上 D1 資料庫的 Database ID"
+database_id = "e13fc950-9849-4771-9a4f-dca17cb05ab7"
 
 # 以下兩個請在 Cloudflare 後台設成 Secret（不要寫在這裡，這個檔案會被網站公開）：
 #   WATCHLIST_CSV_URL  Google Sheet「發佈到網路」的 CSV 網址
