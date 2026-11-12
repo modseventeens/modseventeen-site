@@ -9,6 +9,7 @@
 //
 // 手動執行（第一次部署後補資料、或除錯用）：
 //   https://<worker 網址>/run?job=realtime|latest|details|daily|pledges|pretransfer|monthly|watchlist|cleanup|all&key=<RUN_KEY>
+//   回補月營收公告：curl -X POST "https://<worker 網址>/run?job=importrevann&key=<RUN_KEY>" --data-binary @revann.csv
 //   回補存貨與合約負債：curl -X POST "https://<worker 網址>/run?job=importbs&key=<RUN_KEY>" --data-binary @bs.csv
 //   回補月營收：curl -X POST "https://<worker 網址>/run?job=importrev&key=<RUN_KEY>" --data-binary @rev.csv
 //   回補各季累計 EPS：curl -X POST "https://<worker 網址>/run?job=importeps&key=<RUN_KEY>" --data-binary @eps.csv
@@ -28,9 +29,10 @@ export default {
     let jobs = [];
     // 工作拆到兩個排程，每次執行的量比較小
     // 夜間（00:00–06:59）空檔：月營收、補持股＋觀察名單的資產負債表
-    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : ["bs"];
-    // 每月 1～15 日白天也跑月營收（每次一份彙總表），新出現的公司會變成一則「營收」重大訊息
-    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? (tw.getUTCDate() <= 15 ? ["latest", "reclassify", "revenue"] : ["latest", "reclassify"]) : ["reclassify", "revenue", "bs"];
+    // 每月 1～15 日白天：兩個排程都檢查月營收彙總表（合起來每 5 分鐘一次），新申報的公司會變成一則「營收」重大訊息
+    const revDays = tw.getUTCDate() <= 15;
+    if (event.cron === "*/10 * * * *") jobs = daytime ? (revDays ? ["realtime", "revenue", "details"] : ["realtime", "details"]) : ["bs"];
+    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? (revDays ? ["latest", "revenue", "reclassify"] : ["latest", "reclassify"]) : ["reclassify", "revenue", "bs"];
     else if (event.cron === "40 14 * * *") jobs = ["daily", "pledges", "pretransfer", "watchlist", "cleanup"];
     else if (event.cron === "0 12 * * *") jobs = ["monthly"];
     if (jobs.length) ctx.waitUntil(runJobs(env, jobs));
@@ -41,6 +43,13 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
+    if (job === "importrevann") {
+      // 回補月營收公告（A,股號,YYYY-MM,申報日）
+      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
+      await ensureSchema(env);
+      const report = await importRevenueAnnouncements(env, await request.text());
+      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
     if (job === "importbs") {
       // 回補存貨與合約負債：POST 一個 CSV（B,股號,YYYYQn,存貨,合約負債流動,合約負債非流動；千元）
       if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
@@ -323,12 +332,14 @@ async function replaceList(env, table, list) {
 const REV_FILES = [["sii", 0], ["sii", 1], ["otc", 0], ["otc", 1]];
 
 /**
- * 月營收：上個月的 4 份彙總表，每次只處理一份。
- *   1～15 日：每份至少隔 35 分鐘重抓一次（公司陸續申報）；之後沒抓過才抓。
+ * 月營收：上個月的 4 份彙總表（上市／上櫃 × 國內／國外）。
+ *   1～15 日：兩個排程每 5 分鐘各跑一次，每次檢查最多 2 份「超過 4 分鐘沒檢查」的表，
+ *            帶 Last-Modified／ETag 有條件抓取，檔案沒變就不解析 → 觀測站更新後約 5 分鐘內同步。
+ *   之後：沒抓過才抓。
  *   新出現的公司（資料庫還沒有這個月的營收）→ 寫成一則「營收」類重大訊息；
  *   一次新出現太多家（> 400，例如第一次跑或回補）就只寫數字、不發公告，避免把舊資料當新聞。
  */
-const REV_REFRESH_MS = 35 * 60e3;
+const REV_CHECK_MS = 4 * 60e3;
 const REV_BULK = 400;
 async function revenue(env) {
   const tw = M.twNow();
@@ -338,37 +349,92 @@ async function revenue(env) {
   const ym = `${month.getUTCFullYear()}-${M.pad(month.getUTCMonth() + 1)}`;
   const rocY = month.getUTCFullYear() - 1911, m = month.getUTCMonth() + 1;
   const keys = REV_FILES.map(([market, part]) => `rev_${ym}_${market}${part}`);
-  const { results } = await env.DB.prepare(`SELECT key, value FROM meta WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all();
-  const last = Object.fromEntries(results.map((r) => [r.key, r.value]));
-  const stale = (k) => !last[k] || (day <= 15 && Date.now() - Date.parse(last[k].length === 10 ? last[k] + "T00:00:00+08:00" : last[k]) > REV_REFRESH_MS);
-  const cand = keys.map((k, i) => i).filter((i) => stale(keys[i]));
-  if (!cand.length) return { ym, status: "已是最新" };
-  // 最久沒更新的先抓
-  cand.sort((a, b) => (last[keys[a]] || "").localeCompare(last[keys[b]] || ""));
-  const i = cand[0];
-  const [market, part] = REV_FILES[i];
-  const rows = await K.fetchRevenue(market, rocY, m, part);
+  const sigKeys = keys.map((k) => k + "_sig");
+  const all = [...keys, ...sigKeys];
+  const { results } = await env.DB.prepare(`SELECT key, value FROM meta WHERE key IN (${all.map(() => "?").join(",")})`).bind(...all).all();
+  const meta = Object.fromEntries(results.map((r) => [r.key, r.value]));
+  const lastAt = (k) => (meta[k] ? Date.parse(meta[k].length === 10 ? meta[k] + "T00:00:00+08:00" : meta[k]) : 0);
+  const due = keys.map((k, i) => i).filter((i) => !meta[keys[i]] || (day <= 15 && Date.now() - lastAt(keys[i]) > REV_CHECK_MS));
+  if (!due.length) return { ym, status: "已是最新" };
+  due.sort((a, b) => lastAt(keys[a]) - lastAt(keys[b])); // 最久沒檢查的先
   const now = new Date().toISOString();
-  const { results: have } = await env.DB.prepare("SELECT company_id FROM revenue_monthly WHERE ym = ?").bind(ym).all();
-  const haveSet = new Set(have.map((r) => r.company_id));
-  const fresh = rows.filter((r) => r.cur != null && !haveSet.has(r.code));
-  const stmts = rows.length ? K.revenueStatements(env.DB, rows, market, ym, now) : [];
-  let announced = 0;
-  if (fresh.length && fresh.length <= REV_BULK) {
-    const time = `${M.pad(tw.getUTCHours())}:${M.pad(tw.getUTCMinutes())}:${M.pad(tw.getUTCSeconds())}`;
-    const ins = env.DB.prepare(
-      `INSERT OR IGNORE INTO announcements (id, kind, market, company_id, company_name, date, time, subject, category, url, note, detail, detail_at, created_at, cat_ver)
-       VALUES (?, 'material', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    );
-    for (const r of fresh) {
-      const a = K.revenueAnnouncement(r, market, ym, today, time);
-      stmts.push(ins.bind(a.id, a.market, a.company_id, a.company_name, a.date, a.time, a.subject, a.category, a.url, a.note, a.detail, now, now, M.RULES_VER));
-      announced++;
+  const time = `${M.pad(tw.getUTCHours())}:${M.pad(tw.getUTCMinutes())}:${M.pad(tw.getUTCSeconds())}`;
+  const report = { ym, files: [] };
+  for (const i of due.slice(0, 2)) {
+    const [market, part] = REV_FILES[i];
+    const res = await K.fetchRevenueIfChanged(market, rocY, m, part, meta[sigKeys[i]]);
+    const stmts = [
+      env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(keys[i], now),
+      env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(sigKeys[i], res.sig || ""),
+    ];
+    let fresh = [], announced = 0;
+    if (res.changed && res.rows.length) {
+      const { results: have } = await env.DB.prepare("SELECT company_id FROM revenue_monthly WHERE ym = ?").bind(ym).all();
+      const haveSet = new Set(have.map((r) => r.company_id));
+      fresh = res.rows.filter((r) => r.cur != null && !haveSet.has(r.code));
+      stmts.push(...K.revenueStatements(env.DB, res.rows, market, ym, now));
+      if (fresh.length && fresh.length <= REV_BULK) {
+        const ins = annInsert(env);
+        for (const r of fresh) {
+          const a = K.revenueAnnouncement(r, market, ym, today, time);
+          stmts.push(ins.bind(a.id, a.market, a.company_id, a.company_name, a.date, a.time, a.subject, a.category, a.url, a.note, a.detail, now, now, M.RULES_VER));
+          announced++;
+        }
+      }
     }
+    await env.DB.batch(stmts);
+    report.files.push({ file: `${market}${part}`, changed: res.changed, companies: res.rows.length, fresh: fresh.length, announced });
   }
-  stmts.push(env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(keys[i], now));
-  await env.DB.batch(stmts);
-  return { ym, file: `${market}${part}`, companies: rows.length, fresh: fresh.length, announced };
+  return report;
+}
+
+function annInsert(env) {
+  return env.DB.prepare(
+    `INSERT OR IGNORE INTO announcements (id, kind, market, company_id, company_name, date, time, subject, category, url, note, detail, detail_at, created_at, cat_ver)
+     VALUES (?, 'material', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+}
+
+/**
+ * 回補「營收」公告：POST 檔案，每行 A,股號,YYYY-MM,申報日（YYYY-MM-DD，近似值）
+ * 營收數字、上月、去年同月與備註取自資料庫的 revenue_monthly；時間未知留空。
+ */
+async function importRevenueAnnouncements(env, text) {
+  const rows = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const mm = line.trim().match(/^A,([0-9A-Z]{4,6}),(\d{4}-\d{2}),(\d{4}-\d{2}-\d{2})$/);
+    if (mm) rows.push({ code: mm[1], ym: mm[2], date: mm[3] });
+  }
+  if (!rows.length) return { imported: 0, error: "檔案裡沒有資料" };
+  const yms = [...new Set(rows.map((r) => r.ym))];
+  const shift = (ym, n) => { const d = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5) - 1 + n, 1)); return d.toISOString().slice(0, 7); };
+  const need = [...new Set(yms.flatMap((ym) => [ym, shift(ym, -1), shift(ym, -12)]))];
+  const [revRes, nameRes] = await env.DB.batch([
+    env.DB.prepare(`SELECT company_id, ym, revenue, note FROM revenue_monthly WHERE ym IN (${need.map(() => "?").join(",")})`).bind(...need),
+    env.DB.prepare("SELECT company_id, name, market FROM company_names"),
+  ]);
+  const rev = {};
+  for (const r of revRes.results) rev[r.company_id + "|" + r.ym] = r;
+  const names = Object.fromEntries(nameRes.results.map((r) => [r.company_id, r]));
+  const now = new Date().toISOString();
+  const ins = annInsert(env);
+  const stmts = [];
+  let skipped = 0;
+  for (const x of rows) {
+    const cur = rev[x.code + "|" + x.ym], prev = rev[x.code + "|" + shift(x.ym, -1)], last = rev[x.code + "|" + shift(x.ym, -12)];
+    const nm = names[x.code];
+    if (!cur || !nm) { skipped++; continue; }
+    const pct = (a, b) => (a != null && b ? Math.round((a / b - 1) * 10000) / 100 : null);
+    const r = {
+      code: x.code, name: nm.name, cur: cur.revenue, prev: prev?.revenue ?? null, last: last?.revenue ?? null,
+      mom: pct(cur.revenue, prev?.revenue), yoy: pct(cur.revenue, last?.revenue), cum: null, note: cur.note || "",
+    };
+    const a = K.revenueAnnouncement(r, nm.market, x.ym, x.date, "");
+    a.detail = a.detail.replace("時間為系統偵測到的時間，可能晚於公司申報", "回補資料，日期為 FinMind 收錄日（近似申報日），時間未知");
+    stmts.push(ins.bind(a.id, a.market, a.company_id, a.company_name, a.date, a.time, a.subject, a.category, a.url, a.note, a.detail, now, now, M.RULES_VER));
+  }
+  for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
+  return { imported: stmts.length, skipped };
 }
 
 /** 資產負債表：每次補一家持股／觀察名單公司（最多抓 12 季報表） */

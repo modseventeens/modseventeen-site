@@ -100,11 +100,13 @@ const ACQUIRE =
 // 第 20 款裡的理財交易（基金、債券、票券）不算取得處分投資
 const TREASURY = /基金|債券|公司債|票券|貨幣市場|附買回|理財|定存|結構型/;
 
+const SELF_PNL = /自結.*(盈餘|損益)|(盈餘|損益).*自結/;
 const MATERIAL_RULES = [
   ["澄清報導", /澄清|媒體報導|新聞報導/],
   ["股利", /股利|配息|配股|除權|除息|盈餘分配|盈餘轉增資/],
   // 原本的「財報營收」拆成三類：自結損益、財報、營收
-  ["自結損益", /自結/],
+  // 自結損益：主旨同時有「自結」和「盈餘／損益」；「自結合併營業收入」「自結合併營收淨額」屬於營收
+  ["自結損益", SELF_PNL],
   ["財報", /財務報告|財務報表|財報|季報|每股盈餘|EPS/i],
   ["營收", /營業收入|營收|銷售額|銷貨收入/],
   ["財報", /損益|財務資訊/],
@@ -118,7 +120,7 @@ const MATERIAL_RULES = [
   ["董事會決議", /董事會/],
 ];
 const LATEST_RULES = [
-  ["自結損益", /自結/],
+  ["自結損益", SELF_PNL],
   ["產品營收統計", /產品業務營收|產品別|產品營收/],
   ["營收", /營業收入|營收/],
   ["財報", /IFRS|財務報告|財報|會計師|資產負債|損益|現金流量|權益變動/],
@@ -132,7 +134,10 @@ const LATEST_RULES = [
 function byClause(clause, subject) {
   switch (String(clause || "")) {
     case "12": return "法說會";
-    case "31": return /自結/.test(subject) ? "自結損益" : "財報";
+    case "31":
+      if (SELF_PNL.test(subject)) return "自結損益";
+      if (/自結/.test(subject) && /營收|營業收入/.test(subject)) return "營收";
+      return "財報";
     case "14": return "股利";
     case "17": return "股東會";
     case "19":
@@ -385,13 +390,24 @@ export async function migrate(DB) {
     await DB.batch([
       DB.prepare(
         `UPDATE announcements SET category = CASE
-           WHEN subject LIKE '%自結%' THEN '自結損益'
+           WHEN subject LIKE '%自結%' AND (subject LIKE '%盈餘%' OR subject LIKE '%損益%') THEN '自結損益'
            WHEN subject LIKE '%財務報告%' OR subject LIKE '%財務報表%' OR subject LIKE '%財報%' OR subject LIKE '%季報%' OR subject LIKE '%每股盈餘%' THEN '財報'
            WHEN subject LIKE '%營收%' OR subject LIKE '%營業收入%' OR subject LIKE '%銷售額%' OR subject LIKE '%銷貨收入%' THEN '營收'
            ELSE '財報' END
          WHERE category = '財報營收'`
       ),
       DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('split_fin_rev', ?)").bind(new Date().toISOString()),
+    ]);
+  }
+  // 一次性：「自結合併營業收入」這類先前被歸成自結損益的，改回營收
+  const fixed = await DB.prepare("SELECT value FROM meta WHERE key = 'fix_self_rev'").first();
+  if (!fixed) {
+    await DB.batch([
+      DB.prepare(
+        `UPDATE announcements SET category = '營收' WHERE category = '自結損益'
+           AND subject NOT LIKE '%盈餘%' AND subject NOT LIKE '%損益%' AND (subject LIKE '%營收%' OR subject LIKE '%營業收入%')`
+      ),
+      DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('fix_self_rev', ?)").bind(new Date().toISOString()),
     ]);
   }
 }

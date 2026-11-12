@@ -41,6 +41,26 @@ export function parseRevenue(html) {
   return out;
 }
 
+/**
+ * 有條件抓取：帶上次的 Last-Modified／ETag，檔案沒變就不下載、不解析（省 CPU）。
+ * 回傳 { changed, rows, sig }；sig 是這次的版本識別，下次帶回來比對。
+ */
+export async function fetchRevenueIfChanged(market, rocY, m, part, prevSig) {
+  const prev = prevSig ? JSON.parse(prevSig) : {};
+  const headers = { "User-Agent": UA, Referer: "https://mopsov.twse.com.tw/" };
+  if (prev.lm) headers["If-Modified-Since"] = prev.lm;
+  if (prev.etag) headers["If-None-Match"] = prev.etag;
+  const r = await fetch(revenueUrl(market, rocY, m, part), { headers });
+  if (r.status === 304) return { changed: false, rows: [], sig: prevSig };
+  if (r.status === 404) return { changed: false, rows: [], sig: prevSig, missing: true };
+  if (!r.ok) throw new Error("月營收彙總表 HTTP " + r.status);
+  const buf = await r.arrayBuffer();
+  // 伺服器沒給 Last-Modified／ETag 時，用檔案大小判斷有沒有變
+  const sig = JSON.stringify({ lm: r.headers.get("last-modified") || "", etag: r.headers.get("etag") || "", len: buf.byteLength });
+  if (prevSig && sig === prevSig) return { changed: false, rows: [], sig };
+  return { changed: true, rows: parseRevenue(new TextDecoder("big5").decode(buf)), sig };
+}
+
 export async function fetchRevenue(market, rocY, m, part) {
   const html = await fetchBig5(revenueUrl(market, rocY, m, part));
   return html ? parseRevenue(html) : [];
