@@ -9,6 +9,7 @@
 //
 // 手動執行（第一次部署後補資料、或除錯用）：
 //   https://<worker 網址>/run?job=realtime|latest|details|daily|pledges|pretransfer|monthly|watchlist|cleanup|all&key=<RUN_KEY>
+//   回補存貨與合約負債：curl -X POST "https://<worker 網址>/run?job=importbs&key=<RUN_KEY>" --data-binary @bs.csv
 //   回補月營收：curl -X POST "https://<worker 網址>/run?job=importrev&key=<RUN_KEY>" --data-binary @rev.csv
 //   回補各季累計 EPS：curl -X POST "https://<worker 網址>/run?job=importeps&key=<RUN_KEY>" --data-binary @eps.csv
 import * as M from "./mops.js";
@@ -39,6 +40,13 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
+    if (job === "importbs") {
+      // 回補存貨與合約負債：POST 一個 CSV（B,股號,YYYYQn,存貨,合約負債流動,合約負債非流動；千元）
+      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
+      await ensureSchema(env);
+      const report = await importBs(env, await request.text());
+      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
     if (job === "importrev") {
       // 回補月營收：POST 一個 CSV（R,股號,YYYY-MM,營收／C,股號,市場,名稱）
       if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
@@ -341,6 +349,25 @@ async function bs(env) {
   const code = await K.nextCompanyNeedingBs(env.DB, today);
   if (!code) return { status: "持股與觀察名單都已補齊" };
   return { company: code, ...(await K.ensureBalanceSheets(env.DB, code, today, { maxFetch: 12 })) };
+}
+
+/** 匯入回補的存貨與合約負債（較新的季報已寫入的數字不覆蓋） */
+async function importBs(env, text) {
+  const rows = K.parseBsCsv(text);
+  if (!rows.length) return { imported: 0, error: "檔案裡沒有資料" };
+  const now = new Date().toISOString();
+  const v = (x) => (x == null ? "NULL" : x);
+  const stmts = [];
+  for (let i = 0; i < rows.length; i += 300) {
+    stmts.push(env.DB.prepare(
+      `INSERT INTO bs_quarterly (company_id, period, inventory, cl_cur, cl_noncur, src, updated_at) VALUES ${rows.slice(i, i + 300)
+        .map((r) => `('${r.code}','${r.period}',${v(r.inventory)},${r.cl_cur},${r.cl_noncur},'${r.period}','${now}')`).join(",")}
+       ON CONFLICT(company_id, period) DO NOTHING`
+    ));
+  }
+  await env.DB.batch(stmts);
+  const periods = [...new Set(rows.map((r) => r.period))].sort();
+  return { imported: rows.length, companies: new Set(rows.map((r) => r.code)).size, from: periods[0], to: periods.at(-1) };
 }
 
 /** 匯入回補的月營收 */

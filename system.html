@@ -209,13 +209,15 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 .km-tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--line);box-shadow:0 4px 16px rgba(0,0,0,.08);border-radius:8px;padding:7px 10px;font-size:13px;line-height:1.5;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
 .km-tip b{display:block;font-size:12px;color:var(--muted);font-weight:600}
 .km-empty{padding:36px 0;text-align:center;color:var(--muted);font-size:14px}
-.km-card details{margin-top:6px;font-size:13px}
-.km-card summary{cursor:pointer;color:var(--muted);padding:4px 0}
-.km-card table{border-collapse:collapse;font-size:13px;margin:6px 0 8px;font-variant-numeric:tabular-nums}
-.km-card td,.km-card th{padding:3px 10px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap}
-.km-card th{color:var(--muted);font-weight:600}
-.km-card td:first-child,.km-card th:first-child{text-align:left}
-.km-tablewrap{max-height:260px;overflow:auto}
+.km-card .km-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.km-vals{font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;color:#333;white-space:nowrap;flex:none}
+.km-vals:hover{border-color:var(--accent);color:var(--accent)}
+.km-vals[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.km-legend .ln{display:inline-block;width:16px;height:0;border-top:2px solid #e8590c;margin-right:5px;vertical-align:3px;border-radius:0}
+.km-chart .val{font-size:10px;fill:#333;font-variant-numeric:tabular-nums}
+.km-chart .ax-r{font-size:11px;fill:#c2410c;font-variant-numeric:tabular-nums}
+.km-chart .zero{stroke:#e8590c;stroke-opacity:.35;stroke-dasharray:2 3}
+.km-updating{font-size:12px;color:var(--muted);margin-left:auto}
 </style>
 </head>
 <body>
@@ -934,28 +936,43 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     var seq = ++km.seq;
     km.code = input.toUpperCase();
     kmChips();
-    $("km-content").innerHTML = '<div class="state">讀取中…<br><small>第一次查詢的公司要到觀測站抓近 5 年報表，約 10～20 秒</small></div>';
+    $("km-content").innerHTML = '<div class="state">讀取中…</div>';
     var isCode = /^[0-9A-Za-z]{4,6}$/.test(input);
-    fetch(KM_API + "?" + (isCode ? "code=" : "q=") + encodeURIComponent(input)).then(function (r) {
-      return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || d.error || r.status); return d; });
-    }).then(function (d) {
-      if (seq !== km.seq) return;
-      if (d.error) { $("km-content").innerHTML = '<div class="state">' + esc(d.error) + "</div>"; return; }
-      if (d.matches) {
-        $("km-content").innerHTML = '<p class="km-head sub">符合的公司：</p><div class="km-matches">' + d.matches.map(function (c) {
-          return '<button data-code="' + esc(c.id) + '">' + esc(c.id) + " " + esc(c.name) + "</button>";
-        }).join("") + "</div>";
-        return;
+    var q = (isCode ? "code=" : "q=") + encodeURIComponent(input);
+    // 先只讀資料庫（很快）；缺報表時再背景補抓，抓完重畫
+    kmFetch(q + "&fetch=0").then(function (d) {
+      if (seq !== km.seq || !kmShowData(d)) return;
+      if (d.missing > 0) {
+        $("km-updating").textContent = "正在從觀測站補抓 " + d.missing + " 份報表…";
+        kmFetch("code=" + encodeURIComponent(d.company.id)).then(function (d2) {
+          if (seq !== km.seq) return;
+          kmShowData(d2);
+        }).catch(function () { if (seq === km.seq) $("km-updating").textContent = "補抓失敗，稍後再試"; });
       }
-      km.code = d.company.id;
-      km.data = d;
-      if (location.hash !== "#metrics/" + d.company.id) history.replaceState(null, "", "#metrics/" + d.company.id);
-      kmChips();
-      kmRender();
     }).catch(function (e) {
       if (seq !== km.seq) return;
       $("km-content").innerHTML = '<div class="state">讀取失敗：' + esc(e.message) + "</div>";
     });
+  }
+  function kmFetch(qs) {
+    return fetch(KM_API + "?" + qs).then(function (r) {
+      return r.json().then(function (d) { if (!r.ok) throw new Error(d.detail || d.error || r.status); return d; });
+    });
+  }
+  function kmShowData(d) {
+    if (d.error) { $("km-content").innerHTML = '<div class="state">' + esc(d.error) + "</div>"; return false; }
+    if (d.matches) {
+      $("km-content").innerHTML = '<p class="km-head sub">符合的公司：</p><div class="km-matches">' + d.matches.map(function (c) {
+        return '<button data-code="' + esc(c.id) + '">' + esc(c.id) + " " + esc(c.name) + "</button>";
+      }).join("") + "</div>";
+      return false;
+    }
+    km.code = d.company.id;
+    km.data = d;
+    if (location.hash !== "#metrics/" + d.company.id) history.replaceState(null, "", "#metrics/" + d.company.id);
+    kmChips();
+    kmRender();
+    return true;
   }
 
   /* 單位：千元 → 億（≥ 1 億）或百萬 */
@@ -965,18 +982,20 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
   function kmNum(v, u) {
     return (v / u.div).toLocaleString("zh-TW", { minimumFractionDigits: u.dp, maximumFractionDigits: u.dp });
   }
-  function kmPct(a, b) {
-    if (a == null || !b) return "";
-    var p = (a / b - 1) * 100;
-    return (p >= 0 ? "+" : "") + p.toFixed(1) + "%";
-  }
+  /* 年增率（%）；去年同期沒有或為 0 時回 null */
+  function kmYoy(a, b) { return a == null || !b ? null : (a / b - 1) * 100; }
+  function kmPctTxt(p) { return p == null ? "—" : (p >= 0 ? "+" : "") + p.toFixed(1) + "%"; }
+
+  /* 「顯示數字」狀態（每張圖各自記住） */
+  var kmVals = {};
+  try { kmVals = JSON.parse(localStorage.getItem("km_vals") || "{}") || {}; } catch (e) {}
 
   function kmRender() {
     var d = km.data, c = d.company;
     var MKN = { sii: "上市", otc: "上櫃" };
     var html = '<div class="km-head"><h2>' + esc(c.id) + " " + esc(c.name) + "</h2>" +
       (c.market ? '<span class="mk">' + (MKN[c.market] || esc(c.market)) + "</span>" : "") +
-      (c.held ? '<span class="held">持股</span>' : "") + '<span class="sub">單位依數字大小自動換算；滑過或點長條看數字</span></div>';
+      (c.held ? '<span class="held">持股</span>' : "") + '<span class="sub">滑過或點長條看數字</span><span class="km-updating" id="km-updating"></span></div>';
     html += '<div class="km-card" id="km-rev"></div><div class="km-card" id="km-inv"></div><div class="km-card" id="km-cl"></div>';
     $("km-content").innerHTML = html;
     kmRevenue(d.revenue || []);
@@ -984,111 +1003,108 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     kmContract(d.bs || []);
   }
 
-  function kmRevenue(rows) {
+  var C_BAR = "#006aff", C_BAR2 = "#9cc3ff", C_LINE = "#e8590c";
+  function kmCard(el, id, title, sub, u, legend) {
+    var on = !!kmVals[id];
+    el.innerHTML = '<div class="km-top"><div><h3>' + title + "<small>" + sub + (u ? "・" + u.name : "") + "</small></h3>" +
+      '<div class="km-legend">' + legend + '<span><i class="ln"></i>年增率（右軸）</span></div></div>' +
+      '<button class="km-vals" data-vals="' + id + '" aria-pressed="' + on + '">顯示數字</button></div><div class="km-chart"></div>';
+    return el.querySelector(".km-chart");
+  }
+
+  function kmRevenue(all) {
     var el = $("km-rev");
-    var title = '<h3>月營收<small>近 36 個月</small></h3>';
-    if (!rows.length) { el.innerHTML = title + '<div class="km-empty">還沒有月營收資料</div>'; return; }
+    if (!all.length) { el.innerHTML = '<h3>月營收<small>近 36 個月</small></h3><div class="km-empty">還沒有月營收資料</div>'; return; }
     var by = {};
-    rows.forEach(function (r) { by[r.ym] = r.revenue; });
-    var u = kmUnit(Math.max.apply(null, rows.map(function (r) { return r.revenue; })));
+    all.forEach(function (r) { by[r.ym] = r.revenue; });
+    var rows = all.slice(-36);
     var lastYm = function (ym) { return (+ym.slice(0, 4) - 1) + ym.slice(4); };
     var label = function (ym) { return ym.slice(0, 4) + "/" + +ym.slice(5); };
-    el.innerHTML = title.replace("</small>", "・" + u.name + "</small>") + '<div class="km-chart"></div>' + kmTable(
-      ["月份", "營收（" + u.name + "）", "年增"],
-      rows.slice().reverse().map(function (r) { return [label(r.ym), kmNum(r.revenue, u), kmPct(r.revenue, by[lastYm(r.ym)])]; })
-    );
-    kmBars(el.querySelector(".km-chart"), {
-      n: rows.length,
-      series: [{ color: "#006aff", values: rows.map(function (r) { return r.revenue; }) }],
-      unit: u,
+    var u = kmUnit(Math.max.apply(null, rows.map(function (r) { return r.revenue; })));
+    var yoy = rows.map(function (r) { return kmYoy(r.revenue, by[lastYm(r.ym)]); });
+    var box = kmCard(el, "rev", "月營收", "近 36 個月", u, '<span><i style="background:' + C_BAR + '"></i>營收</span>');
+    kmBars(box, {
+      id: "rev", n: rows.length, unit: u,
+      series: [{ color: C_BAR, values: rows.map(function (r) { return r.revenue; }) }],
+      line: yoy,
       xLabel: function (i) { var m = +rows[i].ym.slice(5); return i === 0 || m === 1 ? label(rows[i].ym) : ""; },
       sep: function (i) { return i > 0 && +rows[i].ym.slice(5) === 1; },
-      tip: function (i) {
-        var r = rows[i], yoy = kmPct(r.revenue, by[lastYm(r.ym)]);
-        return "<b>" + label(r.ym) + "</b>營收 " + kmNum(r.revenue, u) + " " + u.name + (yoy ? "<br>年增 " + yoy : "");
-      },
+      tip: function (i) { return "<b>" + label(rows[i].ym) + "</b>營收 " + kmNum(rows[i].revenue, u) + " " + u.name + "<br>年增 " + kmPctTxt(yoy[i]); },
     });
   }
 
-  function kmQuarterSeries(rows, field) {
-    return rows.map(function (r) { return typeof field === "function" ? field(r) : r[field]; });
-  }
   function kmQLabel(p) { return p.replace("Q", " Q"); }
+  function kmLastP(p) { return (+p.slice(0, 4) - 1) + p.slice(4); }
 
-  function kmInventory(rows) {
+  function kmInventory(all) {
     var el = $("km-inv");
-    var title = '<h3>存貨<small>近 20 季，每季季底</small></h3>';
-    var data = rows.filter(function (r) { return r.inventory != null; });
-    if (!data.length) { el.innerHTML = title + '<div class="km-empty">沒有存貨資料（金融業或尚未抓到）</div>'; return; }
+    var data = all.filter(function (r) { return r.inventory != null; });
+    if (!data.length) { el.innerHTML = '<h3>存貨<small>近 20 季，每季季底</small></h3><div class="km-empty">沒有存貨資料（金融業或尚未抓到）</div>'; return; }
     var by = {};
     data.forEach(function (r) { by[r.period] = r.inventory; });
-    var u = kmUnit(Math.max.apply(null, data.map(function (r) { return r.inventory; })));
-    var lastP = function (p) { return (+p.slice(0, 4) - 1) + p.slice(4); };
-    el.innerHTML = title.replace("</small>", "・" + u.name + "</small>") + '<div class="km-chart"></div>' + kmTable(
-      ["季別", "存貨（" + u.name + "）", "年增"],
-      data.slice().reverse().map(function (r) { return [kmQLabel(r.period), kmNum(r.inventory, u), kmPct(r.inventory, by[lastP(r.period)])]; })
-    );
-    kmBars(el.querySelector(".km-chart"), {
-      n: data.length,
-      series: [{ color: "#006aff", values: kmQuarterSeries(data, "inventory") }],
-      unit: u,
-      xLabel: function (i) { return i === 0 || data[i].period.slice(5) === "1" ? data[i].period.slice(0, 4) : ""; },
-      sep: function (i) { return i > 0 && data[i].period.slice(5) === "1"; },
-      tip: function (i) {
-        var r = data[i], yoy = kmPct(r.inventory, by[lastP(r.period)]);
-        return "<b>" + kmQLabel(r.period) + "</b>存貨 " + kmNum(r.inventory, u) + " " + u.name + (yoy ? "<br>年增 " + yoy : "");
-      },
+    var rows = data.slice(-20);
+    var u = kmUnit(Math.max.apply(null, rows.map(function (r) { return r.inventory; })));
+    var yoy = rows.map(function (r) { return kmYoy(r.inventory, by[kmLastP(r.period)]); });
+    var box = kmCard(el, "inv", "存貨", "近 20 季，每季季底", u, '<span><i style="background:' + C_BAR + '"></i>存貨</span>');
+    kmBars(box, {
+      id: "inv", n: rows.length, unit: u,
+      series: [{ color: C_BAR, values: rows.map(function (r) { return r.inventory; }) }],
+      line: yoy,
+      xLabel: function (i) { return i === 0 || rows[i].period.slice(5) === "1" ? rows[i].period.slice(0, 4) : ""; },
+      sep: function (i) { return i > 0 && rows[i].period.slice(5) === "1"; },
+      tip: function (i) { return "<b>" + kmQLabel(rows[i].period) + "</b>存貨 " + kmNum(rows[i].inventory, u) + " " + u.name + "<br>年增 " + kmPctTxt(yoy[i]); },
     });
   }
 
-  function kmContract(rows) {
+  function kmContract(all) {
     var el = $("km-cl");
-    var title = '<h3>合約負債<small>近 20 季，每季季底</small></h3>';
-    if (!rows.length) { el.innerHTML = title + '<div class="km-empty">還沒有資料</div>'; return; }
     var tot = function (r) { return (r.cl_cur || 0) + (r.cl_noncur || 0); };
+    var rows = all.slice(-20);
+    if (!rows.length) { el.innerHTML = '<h3>合約負債<small>近 20 季，每季季底</small></h3><div class="km-empty">還沒有資料</div>'; return; }
     var max = Math.max.apply(null, rows.map(tot));
-    if (!max) { el.innerHTML = title + '<div class="km-empty">近 5 年沒有合約負債</div>'; return; }
+    if (!max) { el.innerHTML = '<h3>合約負債<small>近 20 季，每季季底</small></h3><div class="km-empty">近 5 年沒有合約負債</div>'; return; }
+    var by = {};
+    all.forEach(function (r) { by[r.period] = tot(r); });
     var u = kmUnit(max);
     var hasNon = rows.some(function (r) { return r.cl_noncur; });
-    var C1 = "#006aff", C2 = "#9cc3ff";
-    el.innerHTML = title.replace("</small>", "・" + u.name + "</small>") +
-      (hasNon ? '<div class="km-legend"><span><i style="background:' + C1 + '"></i>流動</span><span><i style="background:' + C2 + '"></i>非流動</span></div>' : "") +
-      '<div class="km-chart"></div>' + kmTable(
-        ["季別", "合計（" + u.name + "）", "流動", "非流動"],
-        rows.slice().reverse().map(function (r) { return [kmQLabel(r.period), kmNum(tot(r), u), kmNum(r.cl_cur || 0, u), kmNum(r.cl_noncur || 0, u)]; })
-      );
-    var series = [{ color: C1, values: kmQuarterSeries(rows, function (r) { return r.cl_cur || 0; }) }];
-    if (hasNon) series.push({ color: C2, values: kmQuarterSeries(rows, function (r) { return r.cl_noncur || 0; }) });
-    kmBars(el.querySelector(".km-chart"), {
-      n: rows.length,
-      series: series,
-      unit: u,
+    var yoy = rows.map(function (r) { return kmYoy(tot(r), by[kmLastP(r.period)]); });
+    var legend = hasNon ? '<span><i style="background:' + C_BAR + '"></i>流動</span><span><i style="background:' + C_BAR2 + '"></i>非流動</span>'
+      : '<span><i style="background:' + C_BAR + '"></i>合約負債</span>';
+    var box = kmCard(el, "cl", "合約負債", "近 20 季，每季季底", u, legend);
+    var series = [{ color: C_BAR, values: rows.map(function (r) { return r.cl_cur || 0; }) }];
+    if (hasNon) series.push({ color: C_BAR2, values: rows.map(function (r) { return r.cl_noncur || 0; }) });
+    kmBars(box, {
+      id: "cl", n: rows.length, unit: u, series: series, line: yoy,
       xLabel: function (i) { return i === 0 || rows[i].period.slice(5) === "1" ? rows[i].period.slice(0, 4) : ""; },
       sep: function (i) { return i > 0 && rows[i].period.slice(5) === "1"; },
       tip: function (i) {
         var r = rows[i];
         return "<b>" + kmQLabel(r.period) + "</b>合約負債 " + kmNum(tot(r), u) + " " + u.name +
-          (hasNon ? "<br>流動 " + kmNum(r.cl_cur || 0, u) + "・非流動 " + kmNum(r.cl_noncur || 0, u) : "");
+          (hasNon ? "<br>流動 " + kmNum(r.cl_cur || 0, u) + "・非流動 " + kmNum(r.cl_noncur || 0, u) : "") + "<br>年增 " + kmPctTxt(yoy[i]);
       },
     });
   }
 
-  function kmTable(head, rows) {
-    return '<details><summary>看數字</summary><div class="km-tablewrap"><table><thead><tr>' + head.map(function (h) { return "<th>" + esc(h) + "</th>"; }).join("") +
-      "</tr></thead><tbody>" + rows.map(function (r) { return "<tr>" + r.map(function (v) { return "<td>" + esc(v) + "</td>"; }).join("") + "</tr>"; }).join("") +
-      "</tbody></table></div></details>";
-  }
-
-  /* 長條圖（可堆疊）：o = { n, series:[{color, values}], unit, xLabel(i), sep(i), tip(i) } */
+  /* 長條圖（可堆疊）＋年增率折線（右軸）：o = { id, n, series:[{color, values}], line:[%], unit, xLabel(i), sep(i), tip(i) } */
   function kmNice(max) {
     if (max <= 0) return { step: 1, top: 1 };
     var raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
     var step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
     return { step: step, top: Math.ceil(max / step) * step };
   }
+  /* 年增率軸：包含 0，上下各留一格 */
+  function kmNiceRange(vals) {
+    var v = vals.filter(function (x) { return x != null && isFinite(x); });
+    var lo = Math.min(0, Math.min.apply(null, v.length ? v : [0])), hi = Math.max(0, Math.max.apply(null, v.length ? v : [10]));
+    if (hi - lo < 10) hi = lo + 10;
+    var raw = (hi - lo) / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    var step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+    return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step: step };
+  }
   function kmBars(box, o) {
     box._o = o;
-    var W = Math.max(box.clientWidth || 600, 280), H = 230, L = 52, R = 6, T = 10, B = 26;
+    var showVals = !!kmVals[o.id];
+    var W = Math.max(box.clientWidth || 600, 280), H = 250, L = 52, R = 46, T = showVals ? 26 : 12, B = 26;
     var pw = W - L - R, ph = H - T - B;
     var totals = [];
     for (var i = 0; i < o.n; i++) totals.push(o.series.reduce(function (s, se) { return s + Math.max(se.values[i] || 0, 0); }, 0));
@@ -1101,27 +1117,54 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       svg += '<line class="' + (t === 0 ? "base" : "grid-l") + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + yy + '" y2="' + yy + '"/>' +
         '<text class="ax" x="' + (L - 6) + '" y="' + (yy + 4) + '" text-anchor="end">' + (+t.toFixed(4)).toLocaleString("zh-TW") + "</text>";
     }
-    // x 軸標籤：第一根的標籤如果太靠近下一個年份標籤就不顯示
+    // 右軸：年增率
+    var hasLine = o.line && o.line.some(function (v) { return v != null; });
+    var rr = hasLine ? kmNiceRange(o.line) : null;
+    var yr = function (p) { return T + ph - (p - rr.lo) / (rr.hi - rr.lo) * ph; };
+    if (hasLine) {
+      for (var pt = rr.lo; pt <= rr.hi + 1e-9; pt += rr.step) {
+        svg += '<text class="ax-r" x="' + (W - R + 6) + '" y="' + (yr(pt) + 4) + '">' + (+pt.toFixed(1)) + "%</text>";
+      }
+      svg += '<line class="zero" x1="' + L + '" x2="' + (W - R) + '" y1="' + yr(0) + '" y2="' + yr(0) + '"/>';
+    }
     var lbls = [];
     for (i = 0; i < o.n; i++) lbls.push(o.xLabel(i));
     for (i = 1; i < o.n; i++) if (lbls[i]) { if (i * band < 56) lbls[0] = ""; break; }
+    var vertical = band < 34; // 長條太窄時數字直排
     for (i = 0; i < o.n; i++) {
       var x0 = L + i * band;
       if (o.sep && o.sep(i)) svg += '<line class="sep" x1="' + x0 + '" x2="' + x0 + '" y1="' + T + '" y2="' + (T + ph) + '"/>';
-      var lbl = lbls[i];
-      if (lbl) svg += '<text class="ax" x="' + (x0 + 2) + '" y="' + (H - 6) + '">' + esc(lbl) + "</text>";
+      if (lbls[i]) svg += '<text class="ax" x="' + (x0 + 2) + '" y="' + (H - 6) + '">' + esc(lbls[i]) + "</text>";
       var acc = 0, cx = x0 + (band - bw) / 2;
       o.series.forEach(function (se, k) {
         var v = Math.max(se.values[i] || 0, 0);
         if (!v) return;
         var top = y(acc + v), bot = y(acc);
-        var gap = k > 0 ? 2 : 0; // 堆疊段之間留 2px
+        var gap = k > 0 ? 2 : 0;
         var h = Math.max(bot - top - gap, 1);
         svg += '<rect x="' + cx + '" y="' + top + '" width="' + bw + '" height="' + h + '" rx="' + Math.min(3, bw / 3) + '" fill="' + se.color + '"/>';
         acc += v;
       });
-      svg += '<rect class="hit" data-i="' + i + '" x="' + x0 + '" y="' + T + '" width="' + band + '" height="' + ph + '"/>';
+      if (showVals && totals[i]) {
+        var txt = kmNum(totals[i], o.unit), tx = x0 + band / 2, ty = y(totals[i]) - 4;
+        svg += vertical
+          ? '<text class="val" transform="translate(' + (tx + 3) + "," + ty + ') rotate(-90)">' + txt + "</text>"
+          : '<text class="val" x="' + tx + '" y="' + ty + '" text-anchor="middle">' + txt + "</text>";
+      }
     }
+    if (hasLine) {
+      var segs = [], cur = [], pts = "";
+      o.line.forEach(function (v, k) {
+        if (v == null || !isFinite(v)) { if (cur.length) segs.push(cur); cur = []; return; }
+        var px = L + k * band + band / 2, py = yr(Math.max(Math.min(v, rr.hi), rr.lo));
+        cur.push(px.toFixed(1) + " " + py.toFixed(1));
+        pts += '<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="3" fill="#fff" stroke="' + C_LINE + '" stroke-width="2"/>';
+      });
+      if (cur.length) segs.push(cur);
+      var d = segs.map(function (sg) { return "M" + sg.join(" L"); }).join(" ");
+      svg += '<path d="' + d + '" fill="none" stroke="' + C_LINE + '" stroke-width="2" stroke-linejoin="round"/>' + pts;
+    }
+    for (i = 0; i < o.n; i++) svg += '<rect class="hit" data-i="' + i + '" x="' + (L + i * band) + '" y="' + T + '" width="' + band + '" height="' + ph + '"/>';
     svg += "</svg>";
     box.innerHTML = svg + '<div class="km-tip" hidden></div>';
     var tip = box.querySelector(".km-tip");
@@ -1136,9 +1179,19 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       tip.style.left = x + "px";
       tip.style.top = Math.max(yv - tip.offsetHeight, 0) + "px";
     };
-    box.onclick = box.onmousemove; // 手機：點長條看數字
+    box.onclick = box.onmousemove;
     box.onmouseleave = function () { tip.hidden = true; };
   }
+  $("panel-metrics").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-vals]");
+    if (!b) return;
+    var id = b.dataset.vals;
+    kmVals[id] = !kmVals[id];
+    try { localStorage.setItem("km_vals", JSON.stringify(kmVals)); } catch (err) {}
+    b.setAttribute("aria-pressed", String(!!kmVals[id]));
+    var box = b.closest(".km-card").querySelector(".km-chart");
+    if (box && box._o) kmBars(box, box._o);
+  });
   var kmResizeT;
   window.addEventListener("resize", function () {
     clearTimeout(kmResizeT);

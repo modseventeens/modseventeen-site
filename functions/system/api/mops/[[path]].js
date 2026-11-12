@@ -10,7 +10,8 @@
  *   pretransfers?month=YYYY-MM&scope&q
  *   pledges?month=YYYY-MM&scope&q
  *   insiders?ym=YYYY-MM&scope&q
- *   metrics?code=2330 或 ?q=名稱  關鍵指標：近 36 個月營收、近 20 季存貨與合約負債（沒抓過的季別即時去觀測站抓）
+ *   metrics?code=2330 或 ?q=名稱  關鍵指標：近 48 個月營收、近 24 季存貨與合約負債（前 12 個月／4 季只用來算年增率）
+ *                                 fetch=0：只讀資料庫、馬上回傳，並告訴前端還缺幾份報表（missing）；預設會即時去觀測站補抓
  *   metrics                      沒給公司時回傳持股清單
  *
  * Pages 專案需要綁定 D1：變數名稱 DB。
@@ -51,7 +52,7 @@ export async function onRequestGet({ request, env, params }) {
       case "insiders":
         return json(await insiders(env, q.get("ym"), opts));
       case "metrics":
-        return json(await metrics(env, (q.get("code") || q.get("q") || "").trim()));
+        return json(await metrics(env, (q.get("code") || q.get("q") || "").trim(), q.get("fetch") !== "0"));
       default:
         return json({ error: "找不到這個路徑" }, 404);
     }
@@ -62,7 +63,7 @@ export async function onRequestGet({ request, env, params }) {
 
 /* ---------------- 關鍵指標 ---------------- */
 
-async function metrics(env, input) {
+async function metrics(env, input, doFetch = true) {
   const DB = env.DB;
   if (!input) {
     const { results } = await DB.prepare(
@@ -95,14 +96,14 @@ async function metrics(env, input) {
     watch: watch.results.length > 0,
   };
   const today = isoDate(twNow());
-  const got = await ensureBalanceSheets(DB, code, today, { maxFetch: 12, withNewest: true });
+  const got = await ensureBalanceSheets(DB, code, today, { maxFetch: 16, withNewest: true, dryRun: !doFetch });
   const oldest = targetQuarters(today).at(-1);
   const [rev, bs] = await DB.batch([
-    DB.prepare("SELECT ym, revenue FROM revenue_monthly WHERE company_id = ? ORDER BY ym DESC LIMIT 36").bind(code),
+    DB.prepare("SELECT ym, revenue FROM revenue_monthly WHERE company_id = ? ORDER BY ym DESC LIMIT 48").bind(code),
     DB.prepare("SELECT period, inventory, cl_cur, cl_noncur FROM bs_quarterly WHERE company_id = ? AND period >= ? ORDER BY period").bind(code, oldest),
   ]);
   if (!company.name && !rev.results.length && !bs.results.length) return { error: `找不到股號 ${code} 的資料` };
-  return { company, revenue: rev.results.reverse(), bs: bs.results, fetched: got.fetched };
+  return { company, revenue: rev.results.reverse(), bs: bs.results, fetched: got.fetched || 0, missing: got.missing || 0 };
 }
 
 /* ---------------- 篩選條件 ---------------- */

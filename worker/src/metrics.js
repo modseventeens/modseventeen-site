@@ -66,6 +66,16 @@ export function parseRevenueCsv(text) {
   return { rev, names };
 }
 
+/** 資產負債表回補檔：B,股號,YYYYQn,存貨,合約負債流動,合約負債非流動（千元；存貨空白＝沒有這個科目） */
+export function parseBsCsv(text) {
+  const out = [];
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const m = line.trim().match(/^B,([0-9A-Z]{4,6}),(\d{4}Q[1-4]),(-?\d*),(-?\d+),(-?\d+)$/);
+    if (m) out.push({ code: m[1], period: m[2], inventory: m[3] === "" ? null : +m[3], cl_cur: +m[4], cl_noncur: +m[5] });
+  }
+  return out;
+}
+
 /* ---------------- 資產負債表（存貨、合約負債） ---------------- */
 
 /** 各季申報期限：Q1 5/15、Q2 8/14、Q3 11/14、Q4 隔年 3/31 */
@@ -97,7 +107,10 @@ export function newestEnded(todayIso) {
   return end < todayIso ? n : null;
 }
 /** 近 n 季（到最新已過期限那季為止），新到舊 */
-export function targetQuarters(todayIso, n = 20) {
+/** 顯示 20 季；多抓 4 季才算得出每一季的年增率 */
+export const SHOW_QUARTERS = 20;
+export const QUARTERS = 24;
+export function targetQuarters(todayIso, n = QUARTERS) {
   const out = [];
   let { y, q } = latestDue(todayIso);
   for (let i = 0; i < n; i++) {
@@ -112,8 +125,8 @@ export function coverage(report) {
   return q === 4 ? [periodKey(y, 4), periodKey(y - 1, 4)] : [periodKey(y, q), periodKey(y - 1, 4), periodKey(y - 1, q)];
 }
 /** 還要抓哪些報表：從新到舊，沒被涵蓋的那季就抓它自己那份 */
-export function reportsToFetch(targets, finalReports) {
-  const covered = new Set();
+export function reportsToFetch(targets, finalReports, havePeriods = []) {
+  const covered = new Set(havePeriods); // 資料庫已經有的季別（例如匯入的）也算涵蓋
   for (const r of finalReports) coverage(r).forEach((p) => covered.add(p));
   const out = [];
   for (const t of targets) {
@@ -177,11 +190,15 @@ export async function fetchBalanceSheet(code, report) {
  * 補齊一家公司近 20 季的存貨與合約負債。
  * withNewest：連「已結束、還沒過申報期限」的那季也試著抓（網頁查詢時用）
  */
-export async function ensureBalanceSheets(DB, code, todayIso, { maxFetch = 12, withNewest = false, concurrency = 3 } = {}) {
+export async function ensureBalanceSheets(DB, code, todayIso, { maxFetch = 12, withNewest = false, concurrency = 3, dryRun = false } = {}) {
   const targets = targetQuarters(todayIso);
-  const { results } = await DB.prepare("SELECT report, status, tries, final, fetched_at FROM bs_requests WHERE company_id = ?").bind(code).all();
+  const [reqRes, haveRes] = await DB.batch([
+    DB.prepare("SELECT report, status, tries, final, fetched_at FROM bs_requests WHERE company_id = ?").bind(code),
+    DB.prepare("SELECT period FROM bs_quarterly WHERE company_id = ?").bind(code),
+  ]);
+  const results = reqRes.results;
   const req = Object.fromEntries(results.map((r) => [r.report, r]));
-  let todo = reportsToFetch(targets, results.filter((r) => r.final).map((r) => r.report));
+  let todo = reportsToFetch(targets, results.filter((r) => r.final).map((r) => r.report), haveRes.results.map((r) => r.period));
   const newest = withNewest ? newestEnded(todayIso) : null;
   if (newest) {
     const k = periodKey(newest.y, newest.q);
@@ -190,6 +207,7 @@ export async function ensureBalanceSheets(DB, code, todayIso, { maxFetch = 12, w
     if (stale) todo.unshift(k);
   }
   todo = todo.slice(0, maxFetch);
+  if (dryRun) return { missing: todo.length };
   if (!todo.length) return { fetched: 0, ok: 0 };
 
   const now = new Date().toISOString();
@@ -233,15 +251,18 @@ function reqStmt(DB, code, report, status, tries, final, now) {
 /** 持股＋觀察名單裡，下一家還沒補齊的公司（持股優先） */
 export async function nextCompanyNeedingBs(DB, todayIso) {
   const targets = targetQuarters(todayIso);
-  const [list, reqs] = await DB.batch([
-    DB.prepare("SELECT company_id, 1 AS h FROM holdings UNION SELECT company_id, 0 AS h FROM watchlist WHERE company_id NOT IN (SELECT company_id FROM holdings)"),
+  const LIST = "SELECT company_id, 1 AS h FROM holdings UNION SELECT company_id, 0 AS h FROM watchlist WHERE company_id NOT IN (SELECT company_id FROM holdings)";
+  const [list, reqs, have] = await DB.batch([
+    DB.prepare(LIST),
     DB.prepare("SELECT company_id, report FROM bs_requests WHERE final = 1"),
+    DB.prepare(`SELECT company_id, period FROM bs_quarterly WHERE period >= ? AND company_id IN (SELECT company_id FROM (${LIST}))`).bind(targets.at(-1)),
   ]);
-  const done = {};
+  const done = {}, got = {};
   for (const r of reqs.results) (done[r.company_id] ||= []).push(r.report);
+  for (const r of have.results) (got[r.company_id] ||= []).push(r.period);
   const companies = list.results.filter((c) => isCode(c.company_id)).sort((a, b) => b.h - a.h || a.company_id.localeCompare(b.company_id));
   for (const c of companies) {
-    if (reportsToFetch(targets, done[c.company_id] || []).length) return c.company_id;
+    if (reportsToFetch(targets, done[c.company_id] || [], got[c.company_id] || []).length) return c.company_id;
   }
   return null;
 }
