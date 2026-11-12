@@ -384,31 +384,36 @@ export async function migrate(DB) {
       if (!have.has(col)) await DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`).run();
     }
   }
-  // 一次性：舊的「財報營收」拆成自結損益／營收／財報（只跑一次）
-  const done = await DB.prepare("SELECT value FROM meta WHERE key = 'split_fin_rev'").first();
-  if (!done) {
-    await DB.batch([
-      DB.prepare(
-        `UPDATE announcements SET category = CASE
-           WHEN subject LIKE '%自結%' AND (subject LIKE '%盈餘%' OR subject LIKE '%損益%') THEN '自結損益'
-           WHEN subject LIKE '%財務報告%' OR subject LIKE '%財務報表%' OR subject LIKE '%財報%' OR subject LIKE '%季報%' OR subject LIKE '%每股盈餘%' THEN '財報'
-           WHEN subject LIKE '%營收%' OR subject LIKE '%營業收入%' OR subject LIKE '%銷售額%' OR subject LIKE '%銷貨收入%' THEN '營收'
-           ELSE '財報' END
-         WHERE category = '財報營收'`
-      ),
-      DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('split_fin_rev', ?)").bind(new Date().toISOString()),
-    ]);
-  }
-  // 一次性：「自結合併營業收入」這類先前被歸成自結損益的，改回營收
-  const fixed = await DB.prepare("SELECT value FROM meta WHERE key = 'fix_self_rev'").first();
-  if (!fixed) {
-    await DB.batch([
-      DB.prepare(
-        `UPDATE announcements SET category = '營收' WHERE category = '自結損益'
-           AND subject NOT LIKE '%盈餘%' AND subject NOT LIKE '%損益%' AND (subject LIKE '%營收%' OR subject LIKE '%營業收入%')`
-      ),
-      DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('fix_self_rev', ?)").bind(new Date().toISOString()),
-    ]);
+  // 一次性修正：寫入失敗（例如當天寫入額度用完）不影響讀取，下次再試
+  try {
+    // 一次性：舊的「財報營收」拆成自結損益／營收／財報（只跑一次）
+    const done = await DB.prepare("SELECT value FROM meta WHERE key = 'split_fin_rev'").first();
+    if (!done) {
+      await DB.batch([
+        DB.prepare(
+          `UPDATE announcements SET category = CASE
+             WHEN subject LIKE '%自結%' AND (subject LIKE '%盈餘%' OR subject LIKE '%損益%') THEN '自結損益'
+             WHEN subject LIKE '%財務報告%' OR subject LIKE '%財務報表%' OR subject LIKE '%財報%' OR subject LIKE '%季報%' OR subject LIKE '%每股盈餘%' THEN '財報'
+             WHEN subject LIKE '%營收%' OR subject LIKE '%營業收入%' OR subject LIKE '%銷售額%' OR subject LIKE '%銷貨收入%' THEN '營收'
+             ELSE '財報' END
+           WHERE category = '財報營收'`
+        ),
+        DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('split_fin_rev', ?)").bind(new Date().toISOString()),
+      ]);
+    }
+    // 一次性：「自結合併營業收入」這類先前被歸成自結損益的，改回營收
+    const fixed = await DB.prepare("SELECT value FROM meta WHERE key = 'fix_self_rev'").first();
+    if (!fixed) {
+      await DB.batch([
+        DB.prepare(
+          `UPDATE announcements SET category = '營收' WHERE category = '自結損益'
+             AND subject NOT LIKE '%盈餘%' AND subject NOT LIKE '%損益%' AND (subject LIKE '%營收%' OR subject LIKE '%營業收入%')`
+        ),
+        DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('fix_self_rev', ?)").bind(new Date().toISOString()),
+      ]);
+    }
+  } catch (e) {
+    console.log("一次性修正暫時失敗：", String(e.message || e));
   }
 }
 

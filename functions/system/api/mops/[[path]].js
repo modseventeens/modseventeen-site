@@ -96,14 +96,19 @@ async function metrics(env, input, doFetch = true) {
     watch: watch.results.length > 0,
   };
   const today = isoDate(twNow());
-  const got = await ensureBalanceSheets(DB, code, today, { maxFetch: 16, withNewest: true, dryRun: !doFetch });
+  let got = {}, saveError = null;
+  try {
+    got = await ensureBalanceSheets(DB, code, today, { maxFetch: 16, withNewest: true, dryRun: !doFetch });
+  } catch (e) {
+    saveError = String(e.message || e).slice(0, 120); // 寫入額度用完時，先回傳資料庫已有的資料
+  }
   const oldest = targetQuarters(today).at(-1);
   const [rev, bs] = await DB.batch([
     DB.prepare("SELECT ym, revenue FROM revenue_monthly WHERE company_id = ? ORDER BY ym DESC LIMIT 48").bind(code),
     DB.prepare("SELECT period, inventory, cl_cur, cl_noncur FROM bs_quarterly WHERE company_id = ? AND period >= ? ORDER BY period").bind(code, oldest),
   ]);
   if (!company.name && !rev.results.length && !bs.results.length) return { error: `找不到股號 ${code} 的資料` };
-  return { company, revenue: rev.results.reverse(), bs: bs.results, fetched: got.fetched || 0, missing: got.missing || 0 };
+  return { company, revenue: rev.results.reverse(), bs: bs.results, fetched: got.fetched || 0, missing: saveError ? 0 : got.missing || 0, save_error: saveError };
 }
 
 /* ---------------- 篩選條件 ---------------- */
@@ -206,11 +211,16 @@ async function announcement(env, rid) {
     const item = { company_id: row.company_id, category, detail: d.detail, note: makeNote(category, d.detail) };
     const epsStmts = await applyEpsNotes(env.DB, [item]);
     const note = item.note;
-    await env.DB.batch([
-      env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?")
-        .bind(d.speaker, d.clause, d.fact_date, d.detail, at, category, note, RULES_VER, +rid),
-      ...epsStmts,
-    ]);
+    try {
+      await env.DB.batch([
+        env.DB.prepare("UPDATE announcements SET speaker=?, clause=?, fact_date=?, detail=?, detail_at=?, category=?, note=?, cat_ver=? WHERE rowid=?")
+          .bind(d.speaker, d.clause, d.fact_date, d.detail, at, category, note, RULES_VER, +rid),
+        ...epsStmts,
+      ]);
+    } catch (e) {
+      // 寫入失敗（例如 D1 當天寫入額度用完）不影響閱讀：照樣把內文顯示出來，下次點開再存
+      row.save_error = String(e.message || e).slice(0, 120);
+    }
     row = { ...row, ...d, detail_at: at, category, note };
   }
   delete row.detail_api;
