@@ -15,14 +15,28 @@ export function revenueUrl(market, rocY, m, part) {
   return `${MOPSOV}/nas/t21/${market}/t21sc03_${rocY}_${m}_${part}.html`;
 }
 
-/** 欄位：代號、名稱、當月營收、上月營收、去年當月營收、…（單位：千元） */
+/**
+ * 欄位：代號、名稱、當月營收、上月營收、去年當月營收、上月比較增減(%)、去年同月增減(%)、
+ *       當月累計營收、去年累計營收、前期比較增減(%)、備註（單位：千元）
+ */
 export function parseRevenue(html) {
   const out = [];
-  const re = /<tr[^>]*>\s*<td[^>]*>\s*([0-9A-Z]{4,6})\s*<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td[^>]*>([^<]*)<\/td>\s*<td[^>]*>[^<]*<\/td>\s*<td[^>]*>([^<]*)<\/td>/gi;
+  const rowRe = /<tr[^>]*>\s*<td[^>]*>\s*([0-9A-Z]{4,6})\s*<\/td>([\s\S]*?)<\/tr>/gi;
+  const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/gi;
   let m;
-  while ((m = re.exec(html))) {
-    const cur = m[3].trim(), last = m[4].trim();
-    out.push({ code: m[1], name: m[2].trim(), cur: /\d/.test(cur) ? num(cur) : null, last: /\d/.test(last) ? num(last) : null });
+  while ((m = rowRe.exec(html))) {
+    const c = [];
+    let x;
+    cellRe.lastIndex = 0;
+    while ((x = cellRe.exec(m[2]))) c.push(x[1].replace(/<[^>]+>|&nbsp;/g, "").trim());
+    if (c.length < 4) continue;
+    const n = (v) => (v != null && /\d/.test(v) ? num(v) : null);
+    const p = (v) => (v != null && /\d/.test(v) ? parseFloat(v.replace(/,/g, "")) : null);
+    const note = (c[9] || "").trim();
+    out.push({
+      code: m[1], name: c[0], cur: n(c[1]), prev: n(c[2]), last: n(c[3]), mom: p(c[4]), yoy: p(c[5]),
+      cum: n(c[6]), cumLast: n(c[7]), cumYoy: p(c[8]), note: note === "-" || note === "－" ? "" : note,
+    });
   }
   return out;
 }
@@ -48,10 +62,44 @@ export function revenueStatements(DB, rows, market, ym, now) {
     const names = part.map((r) => `(${sqlStr(r.code)},${sqlStr(r.name)},'${market}','${now}')`);
     // 數字沒變就不寫（D1 免費方案每天可寫入的列數有上限）
     if (cur.length) stmts.push(DB.prepare(`INSERT INTO revenue_monthly (company_id, ym, revenue) VALUES ${cur.join(",")} ${REV_UPSERT}`));
+    const notes = part.filter((r) => r.cur != null && r.note).map((r) => `(${sqlStr(r.code)},'${ym}',${r.cur},${sqlStr(r.note.slice(0, 300))})`);
+    if (notes.length) stmts.push(DB.prepare(
+      `INSERT INTO revenue_monthly (company_id, ym, revenue, note) VALUES ${notes.join(",")}
+       ON CONFLICT(company_id, ym) DO UPDATE SET note = excluded.note WHERE note IS NOT excluded.note`
+    ));
     if (last.length) stmts.push(DB.prepare(`INSERT OR IGNORE INTO revenue_monthly (company_id, ym, revenue) VALUES ${last.join(",")}`));
     stmts.push(DB.prepare(`INSERT INTO company_names (company_id, name, market, updated_at) VALUES ${names.join(",")} ${NAME_UPSERT}`));
   }
   return stmts;
+}
+
+const fmtYi = (v) => (v / 1e5).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (v) => (v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(1) + "%");
+
+/**
+ * 月營收公告：彙總表裡「這次才出現」的公司，轉成一則「營收」類重大訊息
+ * （觀測站的月營收不是重大訊息，多數公司不會另發；這裡把它補進重大訊息列表）
+ */
+export function revenueAnnouncement(r, market, ym, dateIso, timeStr) {
+  const mo = +ym.slice(5);
+  const detail = [
+    `資料年月：${ym}`,
+    `本月營收：${fmtYi(r.cur)} 億元（${r.cur.toLocaleString("en-US")} 千元）`,
+    r.prev != null ? `上月營收：${fmtYi(r.prev)} 億元，月增 ${fmtPct(r.mom)}` : "",
+    r.last != null ? `去年同月：${fmtYi(r.last)} 億元，年增 ${fmtPct(r.yoy)}` : "",
+    r.cum != null ? `今年累計：${fmtYi(r.cum)} 億元，累計年增 ${fmtPct(r.cumYoy)}` : "",
+    r.note ? `備註：${r.note}` : "",
+    "來源：公開資訊觀測站 月營收彙總表（時間為系統偵測到的時間，可能晚於公司申報）",
+  ].filter(Boolean).join("\n");
+  return {
+    id: `rev|${r.code}|${ym}`,
+    market, company_id: r.code, company_name: r.name, date: dateIso, time: timeStr,
+    subject: `${mo}月營收 ${fmtYi(r.cur)} 億元，月增 ${fmtPct(r.mom)}，年增 ${fmtPct(r.yoy)}`,
+    category: "營收",
+    url: "https://mops.twse.com.tw/mops/#/web/t05st10_ifrs",
+    note: r.note || "",
+    detail,
+  };
 }
 
 /** 回補檔：R,股號,YYYY-MM,營收（千元）／C,股號,市場,名稱 */

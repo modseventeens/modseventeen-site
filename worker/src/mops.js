@@ -103,7 +103,11 @@ const TREASURY = /基金|債券|公司債|票券|貨幣市場|附買回|理財|�
 const MATERIAL_RULES = [
   ["澄清報導", /澄清|媒體報導|新聞報導/],
   ["股利", /股利|配息|配股|除權|除息|盈餘分配|盈餘轉增資/],
-  ["財報營收", /財務報告|財務報表|財報|自結|營業收入|營收|損益|每股盈餘|財務資訊|季報/],
+  // 原本的「財報營收」拆成三類：自結損益、財報、營收
+  ["自結損益", /自結/],
+  ["財報", /財務報告|財務報表|財報|季報|每股盈餘|EPS/i],
+  ["營收", /營業收入|營收|銷售額|銷貨收入/],
+  ["財報", /損益|財務資訊/],
   ["庫藏股", /庫藏股|買回本公司股份|買回股份/],
   ["股東會", /股東常會|股東臨時會|股東會/],
   ["法說會", /法人說明會|法說會|投資人說明會|業績發表|投資論壇|論壇|Access Day|Conference|Summit|Forum/i],
@@ -114,6 +118,7 @@ const MATERIAL_RULES = [
   ["董事會決議", /董事會/],
 ];
 const LATEST_RULES = [
+  ["自結損益", /自結/],
   ["產品營收統計", /產品業務營收|產品別|產品營收/],
   ["營收", /營業收入|營收/],
   ["財報", /IFRS|財務報告|財報|會計師|資產負債|損益|現金流量|權益變動/],
@@ -127,7 +132,7 @@ const LATEST_RULES = [
 function byClause(clause, subject) {
   switch (String(clause || "")) {
     case "12": return "法說會";
-    case "31": return "財報營收";
+    case "31": return /自結/.test(subject) ? "自結損益" : "財報";
     case "14": return "股利";
     case "17": return "股東會";
     case "19":
@@ -321,7 +326,7 @@ export function quarterlyNote(q, cums) {
  * 並回傳要寫進 eps_cum 的語句（和其他更新一起 batch 執行）。
  */
 export async function applyEpsNotes(DB, items) {
-  const targets = items.map((it) => ({ it, info: it.category === "財報營收" ? epsInfo(it.detail) : null })).filter((x) => x.info);
+  const targets = items.map((it) => ({ it, info: it.category === "財報" ? epsInfo(it.detail) : null })).filter((x) => x.info);
   if (!targets.length) return [];
   const ids = [...new Set(targets.map((x) => x.it.company_id))];
   const years = [...new Set(targets.map((x) => x.info.year))];
@@ -357,13 +362,14 @@ export function makeNote(category, detail) {
   if (!detail) return "";
   if (category === "取得處分投資") return amountNote(detail);
   if (category === "法說會") return conferenceNote(detail);
-  if (category === "財報營收") return epsNote(detail);
+  if (category === "財報") return epsNote(detail);
+  if (category === "營收") return (String(detail).match(/^備註：(.+)$/m) || [])[1] || ""; // 月營收彙總表的備註
   return "";
 }
 
 /* ---------------- 資料表欄位補齊（舊資料庫升級用） ---------------- */
 
-const EXTRA_COLUMNS = { announcements: { note: "TEXT", cat_ver: "INTEGER", detail_tries: "INTEGER" } };
+const EXTRA_COLUMNS = { announcements: { note: "TEXT", cat_ver: "INTEGER", detail_tries: "INTEGER" }, revenue_monthly: { note: "TEXT" } };
 export async function migrate(DB) {
   await DB.batch(SCHEMA.map((sql) => DB.prepare(sql)));
   for (const [table, cols] of Object.entries(EXTRA_COLUMNS)) {
@@ -372,6 +378,21 @@ export async function migrate(DB) {
     for (const [col, type] of Object.entries(cols)) {
       if (!have.has(col)) await DB.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`).run();
     }
+  }
+  // 一次性：舊的「財報營收」拆成自結損益／營收／財報（只跑一次）
+  const done = await DB.prepare("SELECT value FROM meta WHERE key = 'split_fin_rev'").first();
+  if (!done) {
+    await DB.batch([
+      DB.prepare(
+        `UPDATE announcements SET category = CASE
+           WHEN subject LIKE '%自結%' THEN '自結損益'
+           WHEN subject LIKE '%財務報告%' OR subject LIKE '%財務報表%' OR subject LIKE '%財報%' OR subject LIKE '%季報%' OR subject LIKE '%每股盈餘%' THEN '財報'
+           WHEN subject LIKE '%營收%' OR subject LIKE '%營業收入%' OR subject LIKE '%銷售額%' OR subject LIKE '%銷貨收入%' THEN '營收'
+           ELSE '財報' END
+         WHERE category = '財報營收'`
+      ),
+      DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('split_fin_rev', ?)").bind(new Date().toISOString()),
+    ]);
   }
 }
 

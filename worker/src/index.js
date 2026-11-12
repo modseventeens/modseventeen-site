@@ -29,7 +29,8 @@ export default {
     // 工作拆到兩個排程，每次執行的量比較小
     // 夜間（00:00–06:59）空檔：月營收、補持股＋觀察名單的資產負債表
     if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : ["bs"];
-    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest", "reclassify"] : ["reclassify", "revenue", "bs"];
+    // 每月 1～15 日白天也跑月營收（每次一份彙總表），新出現的公司會變成一則「營收」重大訊息
+    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? (tw.getUTCDate() <= 15 ? ["latest", "reclassify", "revenue"] : ["latest", "reclassify"]) : ["reclassify", "revenue", "bs"];
     else if (event.cron === "40 14 * * *") jobs = ["daily", "pledges", "pretransfer", "watchlist", "cleanup"];
     else if (event.cron === "0 12 * * *") jobs = ["monthly"];
     if (jobs.length) ctx.waitUntil(runJobs(env, jobs));
@@ -321,7 +322,14 @@ async function replaceList(env, table, list) {
 
 const REV_FILES = [["sii", 0], ["sii", 1], ["otc", 0], ["otc", 1]];
 
-/** 月營收：上個月的 4 份彙總表，每 1～15 日每天更新一次（之後沒抓過才抓），每次只處理一份 */
+/**
+ * 月營收：上個月的 4 份彙總表，每次只處理一份。
+ *   1～15 日：每份至少隔 35 分鐘重抓一次（公司陸續申報）；之後沒抓過才抓。
+ *   新出現的公司（資料庫還沒有這個月的營收）→ 寫成一則「營收」類重大訊息；
+ *   一次新出現太多家（> 400，例如第一次跑或回補）就只寫數字、不發公告，避免把舊資料當新聞。
+ */
+const REV_REFRESH_MS = 35 * 60e3;
+const REV_BULK = 400;
 async function revenue(env) {
   const tw = M.twNow();
   const today = M.isoDate(tw);
@@ -332,15 +340,35 @@ async function revenue(env) {
   const keys = REV_FILES.map(([market, part]) => `rev_${ym}_${market}${part}`);
   const { results } = await env.DB.prepare(`SELECT key, value FROM meta WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all();
   const last = Object.fromEntries(results.map((r) => [r.key, r.value]));
-  const i = keys.findIndex((k) => !last[k] || (day <= 15 && last[k] !== today));
-  if (i < 0) return { ym, status: "已是最新" };
+  const stale = (k) => !last[k] || (day <= 15 && Date.now() - Date.parse(last[k].length === 10 ? last[k] + "T00:00:00+08:00" : last[k]) > REV_REFRESH_MS);
+  const cand = keys.map((k, i) => i).filter((i) => stale(keys[i]));
+  if (!cand.length) return { ym, status: "已是最新" };
+  // 最久沒更新的先抓
+  cand.sort((a, b) => (last[keys[a]] || "").localeCompare(last[keys[b]] || ""));
+  const i = cand[0];
   const [market, part] = REV_FILES[i];
   const rows = await K.fetchRevenue(market, rocY, m, part);
   const now = new Date().toISOString();
+  const { results: have } = await env.DB.prepare("SELECT company_id FROM revenue_monthly WHERE ym = ?").bind(ym).all();
+  const haveSet = new Set(have.map((r) => r.company_id));
+  const fresh = rows.filter((r) => r.cur != null && !haveSet.has(r.code));
   const stmts = rows.length ? K.revenueStatements(env.DB, rows, market, ym, now) : [];
-  stmts.push(env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(keys[i], today));
+  let announced = 0;
+  if (fresh.length && fresh.length <= REV_BULK) {
+    const time = `${M.pad(tw.getUTCHours())}:${M.pad(tw.getUTCMinutes())}:${M.pad(tw.getUTCSeconds())}`;
+    const ins = env.DB.prepare(
+      `INSERT OR IGNORE INTO announcements (id, kind, market, company_id, company_name, date, time, subject, category, url, note, detail, detail_at, created_at, cat_ver)
+       VALUES (?, 'material', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    for (const r of fresh) {
+      const a = K.revenueAnnouncement(r, market, ym, today, time);
+      stmts.push(ins.bind(a.id, a.market, a.company_id, a.company_name, a.date, a.time, a.subject, a.category, a.url, a.note, a.detail, now, now, M.RULES_VER));
+      announced++;
+    }
+  }
+  stmts.push(env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(keys[i], now));
   await env.DB.batch(stmts);
-  return { ym, file: `${market}${part}`, companies: rows.length };
+  return { ym, file: `${market}${part}`, companies: rows.length, fresh: fresh.length, announced };
 }
 
 /** 資產負債表：每次補一家持股／觀察名單公司（最多抓 12 季報表） */
@@ -405,7 +433,7 @@ async function importEps(env, text) {
        ON CONFLICT(company_id, year, quarter) DO UPDATE SET eps=excluded.eps, source=excluded.source, updated_at=excluded.updated_at`
     ));
   }
-  stmts.push(env.DB.prepare("UPDATE announcements SET cat_ver = NULL WHERE category = '財報營收'"));
+  stmts.push(env.DB.prepare("UPDATE announcements SET cat_ver = NULL WHERE category = '財報'"));
   const res = await env.DB.batch(stmts);
   const quarters = {};
   for (const r of rows) quarters[`${r.year}Q${r.q}`] = (quarters[`${r.year}Q${r.q}`] || 0) + 1;
