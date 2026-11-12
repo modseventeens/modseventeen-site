@@ -4,6 +4,7 @@
  *
  *   meta                         更新時間、名單家數、可選月份
  *   announcements?kind=material|latest&date=YYYY-MM-DD&scope=holdings|watch|all&q=
+ *   （announcements、pretransfers、pledges 也可用 from=YYYY-MM-DD&to=YYYY-MM-DD 指定日期區間；資料只保留 180 天）
  *   （每筆資料都帶 held：是否為持股）
  *   announcements/<rid>          單則內容（名單外的重大訊息會即時去觀測站抓內文）
  *   pretransfers?month=YYYY-MM&scope&q
@@ -42,11 +43,11 @@ export async function onRequestGet({ request, env, params }) {
         return json(await meta(env));
       case "announcements":
         if (seg[1]) return json(await announcement(env, seg[1]));
-        return json(await announcements(env, q.get("kind") === "latest" ? "latest" : "material", q.get("date"), opts));
+        return json(await announcements(env, q.get("kind") === "latest" ? "latest" : "material", q.get("date"), opts, dateRange(q)));
       case "pretransfers":
-        return json(await pretransfers(env, q.get("month"), opts));
+        return json(await pretransfers(env, q.get("month"), opts, dateRange(q)));
       case "pledges":
-        return json(await pledges(env, q.get("month"), opts));
+        return json(await pledges(env, q.get("month"), opts, dateRange(q)));
       case "insiders":
         return json(await insiders(env, q.get("ym"), opts));
       case "metrics":
@@ -126,6 +127,14 @@ function filters(opts, alias = "") {
 }
 
 const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
+const MAX_ROWS = 3000;
+/** from／to 日期區間（顛倒會自動對調）；沒給或格式不對回 null */
+function dateRange(q) {
+  let from = q.get("from"), to = q.get("to");
+  if (!validDate(from) || !validDate(to)) return null;
+  if (from > to) [from, to] = [to, from];
+  return { from, to };
+}
 const validYm = (s) => /^\d{4}-\d{2}$/.test(s || "");
 
 /* ---------------- 各端點 ---------------- */
@@ -150,9 +159,17 @@ async function meta(env) {
   return { watchCount: watch.results[0].n, holdingsCount: hold.results[0].n, latestDate, insiderMonths: ims.results.map((r) => r.ym), updated };
 }
 
-async function announcements(env, kind, date, opts) {
+async function announcements(env, kind, date, opts, range) {
   const f = filters(opts);
   let rows;
+  if (range) {
+    rows = await env.DB.prepare(
+      `SELECT rowid AS rid, market, company_id, company_name, date, time, subject, category, url, note, detail_at IS NOT NULL AS has_detail, company_id IN (SELECT company_id FROM holdings) AS held
+       FROM announcements WHERE kind = ? AND date BETWEEN ? AND ?${f.sql} ORDER BY date DESC, time DESC LIMIT ${MAX_ROWS + 1}`
+    ).bind(kind, range.from, range.to, ...f.binds).all();
+    const items = rows.results;
+    return { kind, from: range.from, to: range.to, items: items.slice(0, MAX_ROWS), truncated: items.length > MAX_ROWS };
+  }
   if (opts.search) {
     // 搜尋公司：不限日期，最近 500 則
     rows = await env.DB.prepare(
@@ -205,25 +222,26 @@ function monthRange(month) {
   return m ? [m + "-01", m + "-31"] : null;
 }
 
-async function pretransfers(env, month, opts) {
-  const range = monthRange(month);
+async function pretransfers(env, month, opts, dr) {
+  const range = dr ? [dr.from, dr.to] : monthRange(month);
   const f = filters(opts);
   const cond = range ? " AND report_date BETWEEN ? AND ?" : "";
   const rows = await env.DB.prepare(
     `SELECT market, report_date, company_id, company_name, role, holder, method, shares, holding, after, transferee, period, company_id IN (SELECT company_id FROM holdings) AS held
-     FROM pretransfers WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, company_id LIMIT 2000`
+     FROM pretransfers WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, company_id LIMIT ${MAX_ROWS}`
   ).bind(...(range || []), ...f.binds).all();
-  return { month: month || null, items: rows.results };
+  return { month: month || null, from: dr?.from || null, to: dr?.to || null, items: rows.results };
 }
 
-async function pledges(env, month, opts) {
-  const range = monthRange(month);
+async function pledges(env, month, opts, dr) {
+  const range = dr ? [dr.from, dr.to] : monthRange(month);
+  if (dr) month = dr.to.slice(0, 7); // 質押比例取區間結束月份以前最新的月報
   const f = filters(opts);
   const cond = range ? " AND report_date BETWEEN ? AND ?" : "";
   const [events, ymRow] = await env.DB.batch([
     env.DB.prepare(
       `SELECT market, company_id, company_name, role, holder, event_date, pledged, released, accumulated, pledgee, report_date, company_id IN (SELECT company_id FROM holdings) AS held
-       FROM pledges WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, event_date DESC LIMIT 2000`
+       FROM pledges WHERE 1=1${cond}${f.sql} ORDER BY report_date DESC, event_date DESC LIMIT ${MAX_ROWS}`
     ).bind(...(range || []), ...f.binds),
     env.DB.prepare("SELECT MAX(ym) AS ym FROM pledge_ratio" + (month && validYm(month) ? " WHERE ym <= ?" : "")).bind(...(month && validYm(month) ? [month] : [])),
   ]);
@@ -237,7 +255,7 @@ async function pledges(env, month, opts) {
     ).bind(ym, minRatio, ...f.binds).all();
     ratio = r.results;
   }
-  return { month: month || null, items: events.results, ratio: { ym, items: ratio } };
+  return { month: month || null, from: dr?.from || null, to: dr?.to || null, items: events.results, ratio: { ym, items: ratio } };
 }
 
 async function insiders(env, ym, opts) {

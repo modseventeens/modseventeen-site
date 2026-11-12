@@ -115,6 +115,7 @@ body.lock{overflow:hidden}
 .seg button{padding:5px 12px;font-size:14px;color:#333}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
 .daynav{display:inline-flex;align-items:center;gap:4px}
+.daynav .tilde{color:var(--muted);margin:0 2px}
 .daynav button{width:28px;height:30px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .mops-note{font-size:13px;color:var(--muted);margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:space-between}
 .mops-note .warn{color:#b26a00}
@@ -142,6 +143,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 @media (max-width:720px){
   .grid .hide-sm{display:none}
   .toolbar input[type=search]{width:120px}
+  .daynav input[type=date]{width:116px;padding:5px 4px;font-size:13px}
 }
 
 @media (max-width:720px){
@@ -224,11 +226,11 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
         <button data-scope="holdings">持股</button><button data-scope="watch">觀察名單</button><button data-scope="all">全部公司</button>
       </span>
       <label>市場 <select id="mops-market"><option value="">全部</option><option value="sii">上市</option><option value="otc">上櫃</option></select></label>
-      <label data-for="day">類型 <select id="mops-category"><option value="">全部</option></select></label>
-      <span class="daynav" data-for="day"><button id="mops-prev" aria-label="前一天">‹</button><input type="date" id="mops-date"><button id="mops-next" aria-label="後一天">›</button></span>
-      <label data-for="month">月份 <input type="month" id="mops-month"></label>
+      <label data-for="ann">類型 <select id="mops-category"><option value="">全部</option></select></label>
+      <span class="daynav" data-for="range"><button id="mops-prev" aria-label="往前一段">‹</button><input type="date" id="mops-from" aria-label="開始日期"><span class="tilde">～</span><input type="date" id="mops-to" aria-label="結束日期"><button id="mops-next" aria-label="往後一段">›</button></span>
       <label data-for="ym">資料月份 <select id="mops-ym"></select></label>
       <label>搜尋 <input type="search" id="mops-q" placeholder="股號或名稱"></label>
+      <label>每頁 <select id="mops-size"><option value="20">20 筆</option><option value="50">50 筆</option><option value="100">100 筆</option></select></label>
     </div>
     <div class="mops-note" id="mops-note"></div>
     <div id="mops-content"><div class="state">載入中…</div></div>
@@ -464,16 +466,31 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
      公開資訊觀測站
      ====================================================================== */
   var M_API = "/system/api/mops";
-  var M_PAGE = 20;
+  var SIZES = [20, 50, 100];
   var SUBS = {
-    material: { label: "重大訊息", filter: "day", job: "realtime" },
-    latest: { label: "最新公告", filter: "day", job: "latest" },
-    pretransfer: { label: "內部人轉讓申報", filter: "month", job: "pretransfer" },
+    material: { label: "重大訊息", filter: "range", ann: true, job: "realtime" },
+    latest: { label: "最新公告", filter: "range", ann: true, job: "latest" },
+    pretransfer: { label: "內部人轉讓申報", filter: "range", job: "pretransfer" },
     insiders: { label: "內部人持股異動", filter: "ym", job: "monthly" },
-    pledges: { label: "設質解質", filter: "month", job: "pledges" },
+    pledges: { label: "設質解質", filter: "range", job: "pledges" },
   };
   var MK = { sii: "上市", otc: "上櫃" };
-  var ms = { sub: "material", scope: null, market: "", category: "", dates: {}, month: "", ym: "", q: "", page: 1, meta: null, data: null, key: "" };
+  var ms = { sub: "material", scope: null, market: "", category: "", ranges: {}, ym: "", q: "", page: 1, size: 20, meta: null, data: null, key: "" };
+  try { var savedSize = +localStorage.getItem("mops_page_size"); if (SIZES.indexOf(savedSize) >= 0) ms.size = savedSize; } catch (e) {}
+  $("mops-size").value = String(ms.size);
+
+  function addDays(iso, n) {
+    var d = new Date(iso + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  function dayDiff(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
+  /* 預設區間：重大訊息／最新公告＝有資料的最新一天（由 API 回傳後填入）；事前申報、設質＝本月 1 日到今天 */
+  function rangeOf(sub) {
+    if (!ms.ranges[sub] && !SUBS[sub].ann) ms.ranges[sub] = { from: twToday().slice(0, 8) + "01", to: twToday() };
+    return ms.ranges[sub] || null;
+  }
+  function rangeText(r) { return !r ? "" : r.from === r.to ? r.from : r.from + " ～ " + r.to; }
 
   function twToday() { return new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); }
   function getJSON(url) {
@@ -502,9 +519,8 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       $("mops-content").innerHTML = '<div class="state">載入中…</div>';
       getJSON(M_API + "/meta").then(function (m) {
         ms.meta = m;
-        if (!ms.scope) ms.scope = m.watchCount > 0 ? "watch" : "all";
-        ms.month = twToday().slice(0, 7);
-        $("mops-month").value = ms.month;
+        // 預設先看持股；沒有持股名單才看觀察名單
+        if (!ms.scope) ms.scope = m.holdingsCount > 0 ? "holdings" : m.watchCount > 0 ? "watch" : "all";
         $("mops-ym").innerHTML = (m.insiderMonths || []).map(function (y) { return '<option value="' + y + '">' + y + '</option>'; }).join("") || '<option value="">尚無資料</option>';
         ms.ym = (m.insiderMonths || [])[0] || "";
         mopsShow();
@@ -520,18 +536,25 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       if (b.dataset.scope === "holdings") b.textContent = "持股（" + (ms.meta.holdingsCount || 0) + "）";
     });
     var f = SUBS[ms.sub].filter;
-    if (f === "day") $("mops-date").value = ms.dates[ms.sub] || "";
-    [].forEach.call(document.querySelectorAll("#mops-toolbar [data-for]"), function (el) { el.hidden = el.dataset.for !== f; });
+    if (f === "range") {
+      var r = rangeOf(ms.sub);
+      $("mops-from").value = r ? r.from : "";
+      $("mops-to").value = r ? r.to : "";
+    }
+    [].forEach.call(document.querySelectorAll("#mops-toolbar [data-for]"), function (el) {
+      el.hidden = !(el.dataset.for === f || (el.dataset.for === "ann" && SUBS[ms.sub].ann));
+    });
     mopsLoad();
   }
 
   function mopsUrl() {
     var p = new URLSearchParams({ scope: ms.scope });
     if (ms.q) p.set("q", ms.q);
-    var s = ms.sub;
-    if (s === "material" || s === "latest") { p.set("kind", s); if (ms.dates[s]) p.set("date", ms.dates[s]); return M_API + "/announcements?" + p; }
-    if (s === "pretransfer") { p.set("month", ms.month); return M_API + "/pretransfers?" + p; }
-    if (s === "pledges") { p.set("month", ms.month); return M_API + "/pledges?" + p; }
+    var s = ms.sub, r = SUBS[s].filter === "range" ? rangeOf(s) : null;
+    if (r && !ms.q) { p.set("from", r.from); p.set("to", r.to); }
+    if (s === "material" || s === "latest") { p.set("kind", s); return M_API + "/announcements?" + p; }
+    if (s === "pretransfer") { if (ms.q && r) { p.set("from", r.from); p.set("to", r.to); } return M_API + "/pretransfers?" + p; }
+    if (s === "pledges") { if (ms.q && r) { p.set("from", r.from); p.set("to", r.to); } return M_API + "/pledges?" + p; }
     if (ms.ym) p.set("ym", ms.ym);
     return M_API + "/insiders?" + p;
   }
@@ -545,7 +568,12 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     getJSON(url).then(function (d) {
       if (url !== ms.key) return;
       ms.data = d;
-      if ((ms.sub === "material" || ms.sub === "latest") && d.date && !ms.q) { ms.dates[ms.sub] = d.date; $("mops-date").value = d.date; }
+      if (SUBS[ms.sub].ann && d.date && !ms.q && !ms.ranges[ms.sub]) {
+        // 第一次進來：API 回傳有資料的最新一天，當作預設區間
+        ms.ranges[ms.sub] = { from: d.date, to: d.date };
+        $("mops-from").value = $("mops-to").value = d.date;
+        ms.key = mopsUrl();
+      }
       if (ms.sub === "insiders" && d.ym) { ms.ym = d.ym; $("mops-ym").value = d.ym; }
       mopsRender();
     }).catch(function (e) {
@@ -568,10 +596,10 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
   }
 
   function slicePage(list) {
-    var pages = Math.max(1, Math.ceil(list.length / M_PAGE));
+    var pages = Math.max(1, Math.ceil(list.length / ms.size));
     if (ms.page > pages) ms.page = pages;
     mopsPager(pages);
-    return list.slice((ms.page - 1) * M_PAGE, ms.page * M_PAGE);
+    return list.slice((ms.page - 1) * ms.size, ms.page * ms.size);
   }
   function mopsPager(pages) {
     if (pages <= 1) { $("mops-pager").innerHTML = ""; return; }
@@ -605,8 +633,10 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       $("mops-category").innerHTML = '<option value="">全部（' + all.length + '）</option>' +
         cats.map(function (c) { return '<option value="' + esc(c) + '"' + (c === ms.category ? " selected" : "") + '>' + esc(c) + '（' + counts[c] + '）</option>'; }).join("");
       var list = ms.category ? all.filter(function (r) { return r.category === ms.category; }) : all;
-      mopsNote(ms.q ? "搜尋「" + esc(ms.q) + "」，近 180 天" : (d.date ? "資料日期 " + d.date : "") + "｜共 " + list.length + " 則");
-      var showDate = !!ms.q;
+      var rg = ms.ranges[s];
+      mopsNote((ms.q ? "搜尋「" + esc(ms.q) + "」，近 180 天" : "資料日期 " + rangeText(rg)) + "｜共 " + list.length + " 則" +
+        (d.truncated ? '｜<span class="warn">區間太長，只顯示最新 3,000 則</span>' : ""));
+      var showDate = !!ms.q || (rg && rg.from !== rg.to);
       var showMemo = s === "material";
       html = table(
         (showDate ? "<th>日期</th>" : "") + "<th>時間</th><th>公司</th><th class=\"hide-sm\">類型</th><th>主旨</th>" +
@@ -618,28 +648,28 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
             '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td>' +
             (showMemo ? '<td class="memo hide-sm">' + esc(r.note || "") + '</td>' : "") + '</tr>';
         }),
-        ms.q ? "找不到這家公司的資料" : "這一天沒有資料"
+        ms.q ? "找不到這家公司的資料" : "這段期間沒有資料"
       );
     } else if (s === "pretransfer") {
       var pt = byMarket(d.items || []);
-      mopsNote(ms.month + " 申報｜共 " + pt.length + " 筆｜事前申報是「預定」轉讓，不代表已經賣出");
+      mopsNote((ms.q ? "搜尋「" + esc(ms.q) + "」" : rangeText(ms.ranges[s]) + " 申報") + "｜共 " + pt.length + " 筆｜事前申報是「預定」轉讓，不代表已經賣出");
       html = table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th>方式</th><th class="n">預定轉讓（張）</th><th class="n hide-sm">轉讓後持股（張）</th><th class="hide-sm">有效期間</th>',
         slicePage(pt).map(function (r) {
           return tr(r) + '<td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
             '</td><td>' + esc(r.method) + (r.transferee ? '<br><small style="color:var(--muted)">' + esc(r.transferee) + '</small>' : "") + '</td><td class="n">' + lots(r.shares) +
             '</td><td class="n hide-sm">' + lots(r.after) + '</td><td class="nw hide-sm">' + esc(r.period) + '</td></tr>';
-        }), "這個月沒有申報");
+        }), "這段期間沒有申報");
     } else if (s === "pledges") {
       var ev = byMarket(d.items || []);
       var rt = byMarket((d.ratio && d.ratio.items) || []);
-      mopsNote(ms.month + " 申報｜設質解質 " + ev.length + " 筆");
+      mopsNote((ms.q ? "搜尋「" + esc(ms.q) + "」" : rangeText(ms.ranges[s]) + " 申報") + "｜設質解質 " + ev.length + " 筆");
       html = '<div class="section-title">設質解質逐筆<small>內部人每次設定或解除質押的公告</small></div>' +
         table('<th>申報日</th><th>公司</th><th>身分</th><th>姓名</th><th class="n">設質（張）</th><th class="n">解質（張）</th><th class="n hide-sm">累積設質（張）</th><th class="hide-sm">質權人</th>',
           slicePage(ev).map(function (r) {
             return tr(r) + '<td class="nw">' + esc(r.report_date) + '</td><td class="nw">' + co(r) + '</td><td>' + esc(r.role) + '</td><td>' + esc(r.holder) +
               '</td><td class="n up">' + (r.pledged ? lots(r.pledged) : "") + '</td><td class="n down">' + (r.released ? lots(r.released) : "") +
               '</td><td class="n hide-sm">' + lots(r.accumulated) + '</td><td class="hide-sm">' + esc(r.pledgee) + '</td></tr>';
-          }), "這個月沒有設質解質公告") +
+          }), "這段期間沒有設質解質公告") +
         '<div class="section-title">董監質押比例' + (d.ratio && d.ratio.ym ? '<small>' + d.ratio.ym + ' 月報' + (ms.scope === "all" && !ms.q ? "，只列 50% 以上" : "") + '</small>' : "") + '</div>' +
         table('<th>公司</th><th class="n">設質股數占董監持股</th>', rt.map(function (r) {
           return tr(r) + '<td class="nw">' + co(r) + '</td><td class="n' + (r.ratio >= 50 ? " up" : "") + '">' + r.ratio.toFixed(2) + '%</td></tr>';
@@ -714,15 +744,33 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
   });
   $("mops-market").addEventListener("change", function () { ms.market = this.value; ms.page = 1; ms.data && mopsRender(); });
   $("mops-category").addEventListener("change", function () { ms.category = this.value; ms.page = 1; mopsRender(); });
-  $("mops-date").addEventListener("change", function () { ms.dates[ms.sub] = this.value; ms.page = 1; mopsLoad(); });
-  $("mops-month").addEventListener("change", function () { if (this.value) { ms.month = this.value; ms.page = 1; mopsLoad(); } });
-  $("mops-ym").addEventListener("change", function () { ms.ym = this.value; ms.page = 1; mopsLoad(); });
-  function shiftDay(n) {
-    var d = new Date((ms.dates[ms.sub] || twToday()) + "T00:00:00Z");
-    d.setUTCDate(d.getUTCDate() + n);
-    ms.dates[ms.sub] = d.toISOString().slice(0, 10); ms.page = 1;
-    $("mops-date").value = ms.dates[ms.sub];
+  function setRange(from, to) {
+    if (!from || !to) return;
+    if (from > to) { var t = from; from = to; to = t; }
+    ms.ranges[ms.sub] = { from: from, to: to };
+    $("mops-from").value = from; $("mops-to").value = to;
+    ms.page = 1;
     mopsLoad();
+  }
+  $("mops-from").addEventListener("change", function () {
+    var r = rangeOf(ms.sub) || { to: this.value };
+    setRange(this.value, this.value > r.to ? this.value : r.to);
+  });
+  $("mops-to").addEventListener("change", function () {
+    var r = rangeOf(ms.sub) || { from: this.value };
+    setRange(this.value < r.from ? this.value : r.from, this.value);
+  });
+  $("mops-size").addEventListener("change", function () {
+    ms.size = +this.value; ms.page = 1;
+    try { localStorage.setItem("mops_page_size", this.value); } catch (e) {}
+    ms.data && mopsRender();
+  });
+  $("mops-ym").addEventListener("change", function () { ms.ym = this.value; ms.page = 1; mopsLoad(); });
+  /* ‹ ›：整段區間往前／往後移動同樣的天數（單日就是前一天／後一天） */
+  function shiftDay(n) {
+    var r = rangeOf(ms.sub) || { from: twToday(), to: twToday() };
+    var len = dayDiff(r.from, r.to) + 1;
+    setRange(addDays(r.from, n * len), addDays(r.to, n * len));
   }
   $("mops-prev").addEventListener("click", function () { shiftDay(-1); });
   $("mops-next").addEventListener("click", function () { shiftDay(1); });
