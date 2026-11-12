@@ -700,6 +700,15 @@ export const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS watchlist (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS holdings (company_id TEXT PRIMARY KEY, name TEXT, note TEXT, updated_at TEXT)`,
   `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)`,
+  // 關鍵指標：月營收、公司名稱、資產負債表（存貨、合約負債）與抓取紀錄，不受 180 天清除影響
+  `CREATE TABLE IF NOT EXISTS revenue_monthly (company_id TEXT, ym TEXT, revenue INTEGER, PRIMARY KEY (company_id, ym))`,
+  `CREATE TABLE IF NOT EXISTS company_names (company_id TEXT PRIMARY KEY, name TEXT, market TEXT, updated_at TEXT)`,
+  // src：這筆數字來自哪一季的報表；較新的報表（可能重編）會覆蓋較舊的
+  `CREATE TABLE IF NOT EXISTS bs_quarterly (company_id TEXT, period TEXT, inventory INTEGER, cl_cur INTEGER, cl_noncur INTEGER, src TEXT, updated_at TEXT,
+    PRIMARY KEY (company_id, period))`,
+  // 抓過哪幾季的報表；final=1 代表不用再抓（抓到了、或過了申報期限仍查無資料、或失敗 3 次）
+  `CREATE TABLE IF NOT EXISTS bs_requests (company_id TEXT, report TEXT, status TEXT, tries INTEGER, final INTEGER, fetched_at TEXT,
+    PRIMARY KEY (company_id, report))`,
   // 各季累計 EPS（算單季用），不受 180 天清除影響
   `CREATE TABLE IF NOT EXISTS eps_cum (company_id TEXT, year INTEGER, quarter INTEGER, eps REAL, source TEXT, updated_at TEXT,
     PRIMARY KEY (company_id, year, quarter))`,

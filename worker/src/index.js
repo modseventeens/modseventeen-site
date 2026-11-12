@@ -3,13 +3,16 @@
 // 排程（wrangler.toml 的 crons，時間是 UTC）：
 //   每 10 分鐘（整 10 分）   即時重大訊息 + 重大訊息內文（台灣 07:00–23:59）
 //   每 10 分鐘（錯開 5 分）  最新公告（台灣 07:00–23:59）＋ 舊資料重新分類（全天）
+//   夜間（台灣 00:00–06:59）兩個 10 分鐘排程：月營收（每次一份彙總表）、補持股＋觀察名單的資產負債表（每次一家）
 //   UTC 14:40（台灣 22:40） 當日重大訊息補抓、設質解質、事前申報、名單同步、清理 180 天前資料
 //   UTC 12:00（台灣 20:00） 月報（持股異動、大額取得／轉讓、質押比例），抓到過就不再抓
 //
 // 手動執行（第一次部署後補資料、或除錯用）：
 //   https://<worker 網址>/run?job=realtime|latest|details|daily|pledges|pretransfer|monthly|watchlist|cleanup|all&key=<RUN_KEY>
+//   回補月營收：curl -X POST "https://<worker 網址>/run?job=importrev&key=<RUN_KEY>" --data-binary @rev.csv
 //   回補各季累計 EPS：curl -X POST "https://<worker 網址>/run?job=importeps&key=<RUN_KEY>" --data-binary @eps.csv
 import * as M from "./mops.js";
+import * as K from "./metrics.js";
 
 const KEEP_DAYS = 180;
 const DETAILS_PER_RUN = 12; // 每 10 分鐘抓幾則內文（量小一點，讓每次執行的 CPU 時間短一點）
@@ -23,8 +26,9 @@ export default {
     const daytime = hour >= 7;
     let jobs = [];
     // 工作拆到兩個排程，每次執行的量比較小
-    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : [];
-    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest", "reclassify"] : ["reclassify"];
+    // 夜間（00:00–06:59）空檔：月營收、補持股＋觀察名單的資產負債表
+    if (event.cron === "*/10 * * * *") jobs = daytime ? ["realtime", "details"] : ["bs"];
+    else if (event.cron === "5-59/10 * * * *") jobs = daytime ? ["latest", "reclassify"] : ["reclassify", "revenue", "bs"];
     else if (event.cron === "40 14 * * *") jobs = ["daily", "pledges", "pretransfer", "watchlist", "cleanup"];
     else if (event.cron === "0 12 * * *") jobs = ["monthly"];
     if (jobs.length) ctx.waitUntil(runJobs(env, jobs));
@@ -35,6 +39,13 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
+    if (job === "importrev") {
+      // 回補月營收：POST 一個 CSV（R,股號,YYYY-MM,營收／C,股號,市場,名稱）
+      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
+      await ensureSchema(env);
+      const report = await importRevenue(env, await request.text());
+      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
+    }
     if (job === "importeps") {
       // 回補各季累計 EPS：POST 一個 CSV（年度,季別,股號,累計EPS，一行一筆）
       if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
@@ -49,7 +60,7 @@ export default {
   },
 };
 
-const JOBS = { realtime, latest, details, daily, pledges, pretransfer, monthly, watchlist, cleanup, reclassify };
+const JOBS = { realtime, latest, details, daily, pledges, pretransfer, monthly, watchlist, cleanup, reclassify, revenue, bs };
 
 async function runJobs(env, jobs, opts = {}) {
   await ensureSchema(env);
@@ -296,6 +307,62 @@ async function replaceList(env, table, list) {
   list.forEach((w) => stmts.push(stmt.bind(w.company_id, w.name, w.note, now)));
   await env.DB.batch(stmts);
   return list.length;
+}
+
+/* ---------------- 關鍵指標 ---------------- */
+
+const REV_FILES = [["sii", 0], ["sii", 1], ["otc", 0], ["otc", 1]];
+
+/** 月營收：上個月的 4 份彙總表，每 1～15 日每天更新一次（之後沒抓過才抓），每次只處理一份 */
+async function revenue(env) {
+  const tw = M.twNow();
+  const today = M.isoDate(tw);
+  const day = tw.getUTCDate();
+  const month = M.addMonths(tw, -1);
+  const ym = `${month.getUTCFullYear()}-${M.pad(month.getUTCMonth() + 1)}`;
+  const rocY = month.getUTCFullYear() - 1911, m = month.getUTCMonth() + 1;
+  const keys = REV_FILES.map(([market, part]) => `rev_${ym}_${market}${part}`);
+  const { results } = await env.DB.prepare(`SELECT key, value FROM meta WHERE key IN (${keys.map(() => "?").join(",")})`).bind(...keys).all();
+  const last = Object.fromEntries(results.map((r) => [r.key, r.value]));
+  const i = keys.findIndex((k) => !last[k] || (day <= 15 && last[k] !== today));
+  if (i < 0) return { ym, status: "已是最新" };
+  const [market, part] = REV_FILES[i];
+  const rows = await K.fetchRevenue(market, rocY, m, part);
+  const now = new Date().toISOString();
+  const stmts = rows.length ? K.revenueStatements(env.DB, rows, market, ym, now) : [];
+  stmts.push(env.DB.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").bind(keys[i], today));
+  await env.DB.batch(stmts);
+  return { ym, file: `${market}${part}`, companies: rows.length };
+}
+
+/** 資產負債表：每次補一家持股／觀察名單公司（最多抓 12 季報表） */
+async function bs(env) {
+  const today = M.isoDate(M.twNow());
+  const code = await K.nextCompanyNeedingBs(env.DB, today);
+  if (!code) return { status: "持股與觀察名單都已補齊" };
+  return { company: code, ...(await K.ensureBalanceSheets(env.DB, code, today, { maxFetch: 12 })) };
+}
+
+/** 匯入回補的月營收 */
+async function importRevenue(env, text) {
+  const { rev, names } = K.parseRevenueCsv(text);
+  if (!rev.length && !names.length) return { imported: 0, error: "檔案裡沒有資料" };
+  const now = new Date().toISOString();
+  const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";
+  const stmts = [];
+  for (let i = 0; i < rev.length; i += 400) {
+    stmts.push(env.DB.prepare(
+      `INSERT INTO revenue_monthly (company_id, ym, revenue) VALUES ${rev.slice(i, i + 400).map((r) => `(${q(r.code)},'${r.ym}',${r.rev})`).join(",")} ${K.REV_UPSERT}`
+    ));
+  }
+  for (let i = 0; i < names.length; i += 300) {
+    stmts.push(env.DB.prepare(
+      `INSERT INTO company_names (company_id, name, market, updated_at) VALUES ${names.slice(i, i + 300).map((n) => `(${q(n.code)},${q(n.name)},'${n.market}','${now}')`).join(",")} ${K.NAME_UPSERT}`
+    ));
+  }
+  await env.DB.batch(stmts);
+  const months = [...new Set(rev.map((r) => r.ym))].sort();
+  return { imported: rev.length, companies: names.length, from: months[0], to: months.at(-1) };
 }
 
 /** 匯入回補的累計 EPS，並讓財報備註全部重算 */

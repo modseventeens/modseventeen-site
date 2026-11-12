@@ -9,10 +9,13 @@
  *   pretransfers?month=YYYY-MM&scope&q
  *   pledges?month=YYYY-MM&scope&q
  *   insiders?ym=YYYY-MM&scope&q
+ *   metrics?code=2330 或 ?q=名稱  關鍵指標：近 36 個月營收、近 20 季存貨與合約負債（沒抓過的季別即時去觀測站抓）
+ *   metrics                      沒給公司時回傳持股清單
  *
  * Pages 專案需要綁定 D1：變數名稱 DB。
  */
-import { fetchDetail, migrate, classify, makeNote, applyEpsNotes, RULES_VER } from "../../../../worker/src/mops.js";
+import { fetchDetail, migrate, classify, makeNote, applyEpsNotes, RULES_VER, twNow, isoDate } from "../../../../worker/src/mops.js";
+import { ensureBalanceSheets, targetQuarters, isCode } from "../../../../worker/src/metrics.js";
 
 const ALLOWED = ["modseventeen.com", "www.modseventeen.com", "localhost", "127.0.0.1"];
 let schemaReady = false;
@@ -46,12 +49,59 @@ export async function onRequestGet({ request, env, params }) {
         return json(await pledges(env, q.get("month"), opts));
       case "insiders":
         return json(await insiders(env, q.get("ym"), opts));
+      case "metrics":
+        return json(await metrics(env, (q.get("code") || q.get("q") || "").trim()));
       default:
         return json({ error: "找不到這個路徑" }, 404);
     }
   } catch (err) {
     return json({ error: "讀取失敗", detail: String(err.message || err) }, 500);
   }
+}
+
+/* ---------------- 關鍵指標 ---------------- */
+
+async function metrics(env, input) {
+  const DB = env.DB;
+  if (!input) {
+    const { results } = await DB.prepare(
+      "SELECT h.company_id AS id, COALESCE(c.name, h.name) AS name FROM holdings h LEFT JOIN company_names c ON c.company_id = h.company_id ORDER BY h.company_id"
+    ).all();
+    return { holdings: results };
+  }
+  let code = input.toUpperCase();
+  if (!isCode(code)) {
+    const { results } = await DB.prepare(
+      `SELECT company_id AS id, name FROM company_names WHERE name LIKE ? ORDER BY (name = ?) DESC, length(name), company_id LIMIT 20`
+    ).bind(`%${input}%`, input).all();
+    if (!results.length) return { error: `找不到「${input}」` };
+    if (results.length > 1 && results[0].name !== input) return { matches: results };
+    code = results[0].id;
+  }
+  const [info, held, watch] = await DB.batch([
+    DB.prepare(
+      `SELECT name, market FROM company_names WHERE company_id = ?
+       UNION ALL SELECT company_name, market FROM announcements WHERE company_id = ? LIMIT 1`
+    ).bind(code, code),
+    DB.prepare("SELECT name FROM holdings WHERE company_id = ?").bind(code),
+    DB.prepare("SELECT name FROM watchlist WHERE company_id = ?").bind(code),
+  ]);
+  const company = {
+    id: code,
+    name: info.results[0]?.name || held.results[0]?.name || watch.results[0]?.name || "",
+    market: info.results[0]?.market || "",
+    held: held.results.length > 0,
+    watch: watch.results.length > 0,
+  };
+  const today = isoDate(twNow());
+  const got = await ensureBalanceSheets(DB, code, today, { maxFetch: 12, withNewest: true });
+  const oldest = targetQuarters(today).at(-1);
+  const [rev, bs] = await DB.batch([
+    DB.prepare("SELECT ym, revenue FROM revenue_monthly WHERE company_id = ? ORDER BY ym DESC LIMIT 36").bind(code),
+    DB.prepare("SELECT period, inventory, cl_cur, cl_noncur FROM bs_quarterly WHERE company_id = ? AND period >= ? ORDER BY period").bind(code, oldest),
+  ]);
+  if (!company.name && !rev.results.length && !bs.results.length) return { error: `找不到股號 ${code} 的資料` };
+  return { company, revenue: rev.results.reverse(), bs: bs.results, fetched: got.fetched };
 }
 
 /* ---------------- 篩選條件 ---------------- */
