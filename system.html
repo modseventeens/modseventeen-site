@@ -106,17 +106,41 @@ body.lock{overflow:hidden}
 .subtab{padding:7px 14px;border-radius:999px;border:1px solid var(--line);font-size:14px;font-weight:600;color:#333}
 .subtab:hover{border-color:var(--accent);color:var(--accent)}
 .subtab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
-.toolbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:12px 14px;background:var(--soft);border-radius:12px;margin-bottom:12px;font-size:14px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:var(--soft);border-radius:12px;margin-bottom:12px;font-size:13px}
 .toolbar label{display:flex;align-items:center;gap:6px;color:var(--muted)}
 .toolbar [hidden]{display:none !important}
-.toolbar select,.toolbar input{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
-.toolbar input[type=search]{width:150px}
+.toolbar select,.toolbar input{font:inherit;font-size:13px;height:30px;padding:0 6px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.toolbar input[type=search]{width:140px;padding:0 8px}
+.toolbar #mops-category{max-width:170px}
+@media (min-width:1000px){.toolbar{flex-wrap:nowrap}.toolbar #mops-q{flex:1 1 120px;min-width:100px}}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
-.seg button{padding:5px 12px;font-size:14px;color:#333}
+.seg button{height:28px;padding:0 10px;font-size:13px;color:#333;white-space:nowrap}
 .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
-.daynav{display:inline-flex;align-items:center;gap:4px}
-.daynav .tilde{color:var(--muted);margin:0 2px}
-.daynav button{width:28px;height:30px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.daynav{display:inline-flex;align-items:center;gap:4px;position:relative}
+.daynav .nav-btn{width:26px;height:30px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.rng-btn{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;gap:6px}
+.rng-btn::before{content:"";width:13px;height:13px;flex:none;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23666' stroke-width='1.5'%3E%3Crect x='1.5' y='3' width='13' height='11.5' rx='2'/%3E%3Cpath d='M1.5 6.5h13M5 1.5v3M11 1.5v3'/%3E%3C/svg%3E")}
+.rng-btn:hover,.rng-btn[aria-expanded="true"]{border-color:var(--accent)}
+.rng-pop{position:absolute;top:36px;left:0;z-index:30;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.12);padding:14px;color:var(--ink)}
+.rng-months{display:flex;gap:20px}
+.rng-m{width:224px}
+.rng-mh{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;margin-bottom:6px;height:28px}
+.rng-mh button{width:28px;height:28px;border-radius:8px;font-size:16px;color:#333}
+.rng-mh button:hover{background:var(--soft)}
+.rng-mh button[disabled]{visibility:hidden}
+.rng-grid{display:grid;grid-template-columns:repeat(7,32px);row-gap:2px}
+.rng-grid .wd{font-size:11px;color:var(--muted);text-align:center;height:22px;line-height:22px}
+.rng-grid button{height:32px;font-size:13px;font-variant-numeric:tabular-nums;border-radius:0;color:var(--ink)}
+.rng-grid button:hover:not([disabled]){outline:1px solid var(--accent);outline-offset:-1px;border-radius:8px}
+.rng-grid button[disabled]{color:#ccc;cursor:default}
+.rng-grid button.in{background:#e8f1ff}
+.rng-grid button.edge{background:var(--accent);color:#fff;border-radius:8px;font-weight:700}
+.rng-grid button.today{text-decoration:underline;text-underline-offset:3px}
+.rng-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.rng-foot button{font-size:12px;padding:3px 10px;border:1px solid var(--line);border-radius:999px}
+.rng-foot button:hover{border-color:var(--accent);color:var(--accent)}
+.rng-foot .hint{font-size:12px;color:var(--muted);margin-left:auto}
+@media (max-width:620px){.rng-months .rng-m+.rng-m{display:none}}
 .mops-note{font-size:13px;color:var(--muted);margin:4px 0 10px;display:flex;flex-wrap:wrap;gap:4px 16px;justify-content:space-between}
 .mops-note .warn{color:#b26a00}
 table.grid{width:100%;border-collapse:collapse;font-size:14px}
@@ -143,7 +167,6 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 @media (max-width:720px){
   .grid .hide-sm{display:none}
   .toolbar input[type=search]{width:120px}
-  .daynav input[type=date]{width:116px;padding:5px 4px;font-size:13px}
 }
 
 @media (max-width:720px){
@@ -225,12 +248,17 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       <span class="seg" id="mops-scope">
         <button data-scope="holdings">持股</button><button data-scope="watch">觀察名單</button><button data-scope="all">全部公司</button>
       </span>
-      <label>市場 <select id="mops-market"><option value="">全部</option><option value="sii">上市</option><option value="otc">上櫃</option></select></label>
-      <label data-for="ann">類型 <select id="mops-category"><option value="">全部</option></select></label>
-      <span class="daynav" data-for="range"><button id="mops-prev" aria-label="往前一段">‹</button><input type="date" id="mops-from" aria-label="開始日期"><span class="tilde">～</span><input type="date" id="mops-to" aria-label="結束日期"><button id="mops-next" aria-label="往後一段">›</button></span>
+      <select id="mops-market" aria-label="市場"><option value="">全部市場</option><option value="sii">上市</option><option value="otc">上櫃</option></select>
+      <select id="mops-category" data-for="ann" aria-label="類型"><option value="">全部類型</option></select>
+      <span class="daynav" data-for="range">
+        <button class="nav-btn" id="mops-prev" aria-label="往前一段">‹</button>
+        <button class="rng-btn" id="mops-range" aria-haspopup="dialog" aria-expanded="false"></button>
+        <button class="nav-btn" id="mops-next" aria-label="往後一段">›</button>
+        <div class="rng-pop" id="rng-pop" role="dialog" aria-label="選擇日期區間" hidden></div>
+      </span>
       <label data-for="ym">資料月份 <select id="mops-ym"></select></label>
-      <label>搜尋 <input type="search" id="mops-q" placeholder="股號或名稱"></label>
-      <label>每頁 <select id="mops-size"><option value="20">20 筆</option><option value="50">50 筆</option><option value="100">100 筆</option></select></label>
+      <input type="search" id="mops-q" placeholder="搜尋股號或名稱" aria-label="搜尋股號或名稱">
+      <select id="mops-size" aria-label="每頁筆數"><option value="20">每頁 20</option><option value="50">每頁 50</option><option value="100">每頁 100</option></select>
     </div>
     <div class="mops-note" id="mops-note"></div>
     <div id="mops-content"><div class="state">載入中…</div></div>
@@ -537,9 +565,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     });
     var f = SUBS[ms.sub].filter;
     if (f === "range") {
-      var r = rangeOf(ms.sub);
-      $("mops-from").value = r ? r.from : "";
-      $("mops-to").value = r ? r.to : "";
+      rngLabel(rangeOf(ms.sub));
     }
     [].forEach.call(document.querySelectorAll("#mops-toolbar [data-for]"), function (el) {
       el.hidden = !(el.dataset.for === f || (el.dataset.for === "ann" && SUBS[ms.sub].ann));
@@ -571,7 +597,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       if (SUBS[ms.sub].ann && d.date && !ms.q && !ms.ranges[ms.sub]) {
         // 第一次進來：API 回傳有資料的最新一天，當作預設區間
         ms.ranges[ms.sub] = { from: d.date, to: d.date };
-        $("mops-from").value = $("mops-to").value = d.date;
+        rngLabel(ms.ranges[ms.sub]);
         ms.key = mopsUrl();
       }
       if (ms.sub === "insiders" && d.ym) { ms.ym = d.ym; $("mops-ym").value = d.ym; }
@@ -630,7 +656,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       all.forEach(function (r) { counts[r.category] = (counts[r.category] || 0) + 1; });
       var cats = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
       if (ms.category && !counts[ms.category]) ms.category = "";
-      $("mops-category").innerHTML = '<option value="">全部（' + all.length + '）</option>' +
+      $("mops-category").innerHTML = '<option value="">全部類型（' + all.length + '）</option>' +
         cats.map(function (c) { return '<option value="' + esc(c) + '"' + (c === ms.category ? " selected" : "") + '>' + esc(c) + '（' + counts[c] + '）</option>'; }).join("");
       var list = ms.category ? all.filter(function (r) { return r.category === ms.category; }) : all;
       var rg = ms.ranges[s];
@@ -748,18 +774,102 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     if (!from || !to) return;
     if (from > to) { var t = from; from = to; to = t; }
     ms.ranges[ms.sub] = { from: from, to: to };
-    $("mops-from").value = from; $("mops-to").value = to;
+    rngLabel(ms.ranges[ms.sub]);
     ms.page = 1;
     mopsLoad();
   }
-  $("mops-from").addEventListener("change", function () {
-    var r = rangeOf(ms.sub) || { to: this.value };
-    setRange(this.value, this.value > r.to ? this.value : r.to);
+  /* ---------- 日期區間選擇器：一個月曆，先點開始日、再點結束日 ---------- */
+  var rp = { open: false, view: null, anchor: null, hover: null };
+  var WD = ["日", "一", "二", "三", "四", "五", "六"];
+  function fmtD(iso) { return iso.replace(/-/g, "/"); }
+  function rngLabel(r) {
+    $("mops-range").textContent = !r ? "選擇日期" : r.from === r.to ? fmtD(r.from) : fmtD(r.from) + " – " + (r.from.slice(0, 4) === r.to.slice(0, 4) ? fmtD(r.to).slice(5) : fmtD(r.to));
+  }
+  function monthAdd(ym, n) {
+    var d = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1));
+    return d.toISOString().slice(0, 7);
+  }
+  function rngMin() { return addDays(twToday(), -180); } // 資料只保留 180 天
+  function rngOpen() {
+    var r = rangeOf(ms.sub) || { from: twToday(), to: twToday() };
+    rp.open = true; rp.anchor = null; rp.hover = null;
+    // 兩個月並排：右邊是結束日所在月份
+    // 手機只顯示一個月：直接顯示結束日所在月份
+    rp.view = window.innerWidth <= 620 ? r.to.slice(0, 7) : monthAdd(r.to.slice(0, 7), -1);
+    if (rp.view < rngMin().slice(0, 7)) rp.view = rngMin().slice(0, 7);
+    $("rng-pop").hidden = false;
+    $("mops-range").setAttribute("aria-expanded", "true");
+    rngDraw();
+  }
+  function rngClose() {
+    rp.open = false;
+    $("rng-pop").hidden = true;
+    $("mops-range").setAttribute("aria-expanded", "false");
+  }
+  function rngMonth(ym, r, lo, hi) {
+    var first = new Date(ym + "-01T00:00:00Z"), dow = first.getUTCDay();
+    var days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
+    var today = twToday(), min = rngMin();
+    var h = '<div class="rng-grid">' + WD.map(function (w) { return '<span class="wd">' + w + "</span>"; }).join("");
+    for (var i = 0; i < dow; i++) h += "<span></span>";
+    for (var d = 1; d <= days; d++) {
+      var iso = ym + "-" + (d < 10 ? "0" : "") + d;
+      var cls = [];
+      if (lo && iso >= lo && iso <= hi) cls.push(iso === lo || iso === hi ? "edge" : "in");
+      if (iso === today) cls.push("today");
+      h += '<button data-d="' + iso + '"' + (cls.length ? ' class="' + cls.join(" ") + '"' : "") + (iso > today || iso < min ? " disabled" : "") + ">" + d + "</button>";
+    }
+    return h + "</div>";
+  }
+  function rngDraw() {
+    var r = rangeOf(ms.sub) || { from: twToday(), to: twToday() };
+    var lo, hi;
+    if (rp.anchor) { var b = rp.hover || rp.anchor; lo = b < rp.anchor ? b : rp.anchor; hi = b < rp.anchor ? rp.anchor : b; }
+    else { lo = r.from; hi = r.to; }
+    var m1 = rp.view, m2 = monthAdd(m1, 1);
+    var canPrev = m1 > rngMin().slice(0, 7), canNext = m2 < twToday().slice(0, 7);
+    var head = function (ym, left, right) {
+      return '<div class="rng-mh"><button data-nav="-1"' + (left ? "" : " disabled") + ' aria-label="上個月">‹</button>' + ym.slice(0, 4) + " 年 " + +ym.slice(5) + ' 月<button data-nav="1"' + (right ? "" : " disabled") + ' aria-label="下個月">›</button></div>';
+    };
+    $("rng-pop").innerHTML = '<div class="rng-months">' +
+      '<div class="rng-m">' + head(m1, canPrev, false) + rngMonth(m1, r, lo, hi) + "</div>" +
+      '<div class="rng-m">' + head(m2, false, canNext) + rngMonth(m2, r, lo, hi) + "</div></div>" +
+      '<div class="rng-foot"><button data-preset="today">今天</button><button data-preset="7">近 7 天</button><button data-preset="30">近 30 天</button><button data-preset="month">本月</button>' +
+      '<span class="hint">' + (rp.anchor ? "再點一下結束日" : "點開始日，再點結束日") + "</span></div>";
+    // 手機只顯示一個月時，第一個月的標題也要能往後翻
+    if (window.innerWidth <= 620) {
+      var h1 = $("rng-pop").querySelector(".rng-m .rng-mh button[data-nav='1']");
+      if (h1) h1.disabled = !(m1 < twToday().slice(0, 7));
+    }
+  }
+  $("mops-range").addEventListener("click", function (e) {
+    e.stopPropagation();
+    rp.open ? rngClose() : rngOpen();
   });
-  $("mops-to").addEventListener("change", function () {
-    var r = rangeOf(ms.sub) || { from: this.value };
-    setRange(this.value < r.from ? this.value : r.from, this.value);
+  $("rng-pop").addEventListener("click", function (e) {
+    e.stopPropagation();
+    var b = e.target.closest("button");
+    if (!b || b.disabled) return;
+    if (b.dataset.nav) { rp.view = monthAdd(rp.view, +b.dataset.nav); rngDraw(); return; }
+    if (b.dataset.preset) {
+      var t = twToday(), p = b.dataset.preset;
+      var from = p === "today" ? t : p === "month" ? t.slice(0, 8) + "01" : addDays(t, -(+p - 1));
+      rngClose(); setRange(from, t); return;
+    }
+    if (b.dataset.d) {
+      if (!rp.anchor) { rp.anchor = b.dataset.d; rp.hover = null; rngDraw(); return; }
+      var a = rp.anchor, d = b.dataset.d;
+      rngClose(); setRange(a < d ? a : d, a < d ? d : a);
+    }
   });
+  $("rng-pop").addEventListener("mouseover", function (e) {
+    var b = e.target.closest("button[data-d]");
+    if (!rp.anchor || !b || b.disabled || rp.hover === b.dataset.d) return;
+    rp.hover = b.dataset.d;
+    rngDraw();
+  });
+  document.addEventListener("click", function () { if (rp.open) rngClose(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && rp.open) rngClose(); });
   $("mops-size").addEventListener("change", function () {
     ms.size = +this.value; ms.page = 1;
     try { localStorage.setItem("mops_page_size", this.value); } catch (e) {}
