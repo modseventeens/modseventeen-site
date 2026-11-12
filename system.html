@@ -1003,9 +1003,15 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     kmContract(d.bs || []);
   }
 
+  function kmTitle(t) {
+    var c = km.data && km.data.company;
+    return c ? esc(c.id + " " + (c.name || "")) + " " + t : t;
+  }
   var C_BAR = "#006aff", C_BAR2 = "#9cc3ff", C_LINE = "#e8590c";
   function kmCard(el, id, title, sub, u, legend) {
     var on = !!kmVals[id];
+    var c = km.data && km.data.company;
+    if (c) title = esc(c.id + " " + (c.name || "")) + " " + title; // 圖表標題前面加公司代號與名稱
     el.innerHTML = '<div class="km-top"><div><h3>' + title + "<small>" + sub + (u ? "・" + u.name : "") + "</small></h3>" +
       '<div class="km-legend">' + legend + '<span><i class="ln"></i>年增率（右軸）</span></div></div>' +
       '<button class="km-vals" data-vals="' + id + '" aria-pressed="' + on + '">顯示數字</button></div><div class="km-chart"></div>';
@@ -1014,7 +1020,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 
   function kmRevenue(all) {
     var el = $("km-rev");
-    if (!all.length) { el.innerHTML = '<h3>月營收<small>近 36 個月</small></h3><div class="km-empty">還沒有月營收資料</div>'; return; }
+    if (!all.length) { el.innerHTML = '<h3>' + kmTitle("月營收") + '<small>近 36 個月</small></h3><div class="km-empty">還沒有月營收資料</div>'; return; }
     var by = {};
     all.forEach(function (r) { by[r.ym] = r.revenue; });
     var rows = all.slice(-36);
@@ -1039,7 +1045,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
   function kmInventory(all) {
     var el = $("km-inv");
     var data = all.filter(function (r) { return r.inventory != null; });
-    if (!data.length) { el.innerHTML = '<h3>存貨<small>近 20 季，每季季底</small></h3><div class="km-empty">沒有存貨資料（金融業或尚未抓到）</div>'; return; }
+    if (!data.length) { el.innerHTML = '<h3>' + kmTitle("存貨") + '<small>近 20 季，每季季底</small></h3><div class="km-empty">沒有存貨資料（金融業或尚未抓到）</div>'; return; }
     var by = {};
     data.forEach(function (r) { by[r.period] = r.inventory; });
     var rows = data.slice(-20);
@@ -1060,9 +1066,9 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
     var el = $("km-cl");
     var tot = function (r) { return (r.cl_cur || 0) + (r.cl_noncur || 0); };
     var rows = all.slice(-20);
-    if (!rows.length) { el.innerHTML = '<h3>合約負債<small>近 20 季，每季季底</small></h3><div class="km-empty">還沒有資料</div>'; return; }
+    if (!rows.length) { el.innerHTML = '<h3>' + kmTitle("合約負債") + '<small>近 20 季，每季季底</small></h3><div class="km-empty">還沒有資料</div>'; return; }
     var max = Math.max.apply(null, rows.map(tot));
-    if (!max) { el.innerHTML = '<h3>合約負債<small>近 20 季，每季季底</small></h3><div class="km-empty">近 5 年沒有合約負債</div>'; return; }
+    if (!max) { el.innerHTML = '<h3>' + kmTitle("合約負債") + '<small>近 20 季，每季季底</small></h3><div class="km-empty">近 5 年沒有合約負債</div>'; return; }
     var by = {};
     all.forEach(function (r) { by[r.period] = tot(r); });
     var u = kmUnit(max);
