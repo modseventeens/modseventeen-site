@@ -155,7 +155,9 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
 .grid .cat{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#0050c0;white-space:nowrap}
 .grid .up{color:#c62828}.grid .down{color:#2e7d32}
 .grid .subj{line-height:1.5}
-.grid td.memo{white-space:nowrap;font-variant-numeric:tabular-nums;color:#333}
+.grid td.memo{white-space:nowrap;font-variant-numeric:tabular-nums;color:#333;width:240px}
+/* 備註固定寬度：太長的（例如營收說明）以「…」截斷，滑過看全文，點一下開內文 */
+.grid td.memo .memo-t{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .held{display:inline-block;font-size:11px;font-weight:700;color:#8a5a00;background:#ffe9b0;border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
 .grid tr.is-held td{background:#fffaf0}
 .grid tr.is-held.click:hover td{background:#fff3d6}
@@ -497,6 +499,16 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
      ====================================================================== */
   var M_API = "/system/api/mops";
   var SIZES = [20, 50, 100];
+  /* 備註金額：系統產生的「N 萬」達 1 億以上改成「x.xx 億」（四捨五入到小數兩位）。
+     營收備註是公司自己寫的說明文字，不改。 */
+  function noteText(r) {
+    var n = r.note || "";
+    if (!n || r.category === "營收") return n;
+    return n.replace(/(-?[\d,]+(?:\.\d+)?)\s*萬/g, function (m, v) {
+      var x = parseFloat(v.replace(/,/g, ""));
+      return Math.abs(x) >= 10000 ? (x / 10000).toFixed(2) + " 億" : m;
+    });
+  }
   var SUBS = {
     material: { label: "重大訊息", filter: "range", ann: true, job: "realtime" },
     latest: { label: "最新公告", filter: "range", ann: true, job: "latest" },
@@ -656,7 +668,10 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       // 類型選單：依目前資料統計
       var counts = {};
       all.forEach(function (r) { counts[r.category] = (counts[r.category] || 0) + 1; });
-      var cats = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+      // 類型選單排序：常看的固定在前面，「其他」放最後，其餘依筆數
+      var CAT_ORDER = ["營收", "財報", "取得處分投資", "自結損益", "法說會", "董事會決議", "庫藏股"];
+      var rank = function (c) { var i = CAT_ORDER.indexOf(c); return i >= 0 ? i : c === "其他" ? 999 : 100; };
+      var cats = Object.keys(counts).sort(function (a, b) { return rank(a) - rank(b) || counts[b] - counts[a]; });
       if (ms.category && !counts[ms.category]) ms.category = "";
       $("mops-category").innerHTML = '<option value="">全部類型（' + all.length + '）</option>' +
         cats.map(function (c) { return '<option value="' + esc(c) + '"' + (c === ms.category ? " selected" : "") + '>' + esc(c) + '（' + counts[c] + '）</option>'; }).join("");
@@ -674,7 +689,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
             (showDate ? '<td class="nw">' + esc(r.date) + "</td>" : "") +
             '<td class="nw">' + esc(String(r.time || "").slice(0, 5)) + '</td><td class="nw">' + co(r) + '</td>' +
             '<td class="hide-sm"><span class="cat">' + esc(r.category) + '</span></td><td class="subj">' + esc(r.subject) + '</td>' +
-            (showMemo ? '<td class="memo hide-sm">' + esc(r.note || "") + '</td>' : "") + '</tr>';
+            (showMemo ? (function (n) { return '<td class="memo hide-sm"><div class="memo-t"' + (n ? ' title="' + esc(n) + '"' : "") + '>' + esc(n) + '</div></td>'; })(noteText(r)) : "") + '</tr>';
         }),
         ms.q ? "找不到這家公司的資料" : "這段期間沒有資料"
       );
@@ -743,7 +758,7 @@ table.grid{width:100%;border-collapse:collapse;font-size:14px}
       $("m-meta").innerHTML = "<span>" + esc(r.date) + " " + esc(String(r.time || "").slice(0, 5)) + "</span>" + co(r) +
         '<span class="chip">' + esc(r.category) + '</span>';
       var dl = [];
-      if (r.note) dl.push("<dt>備註</dt><dd><strong>" + esc(r.note) + "</strong></dd>");
+      if (r.note) dl.push("<dt>備註</dt><dd><strong>" + esc(noteText(r)) + "</strong></dd>");
       if (r.speaker) dl.push("<dt>發言人</dt><dd>" + esc(r.speaker) + "</dd>");
       if (r.clause) dl.push("<dt>符合條款</dt><dd>第 " + esc(r.clause) + " 款</dd>");
       if (r.fact_date) dl.push("<dt>事實發生日</dt><dd>" + esc(r.fact_date) + "</dd>");
