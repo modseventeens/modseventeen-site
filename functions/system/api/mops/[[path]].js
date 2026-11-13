@@ -18,11 +18,24 @@
  */
 import { fetchDetail, migrate, classify, makeNote, applyEpsNotes, RULES_VER, twNow, isoDate } from "../../../../worker/src/mops.js";
 import { ensureBalanceSheets, targetQuarters, isCode } from "../../../../worker/src/metrics.js";
+import { meter, record } from "../../../../worker/src/usage.js";
 
 const ALLOWED = ["modseventeen.com", "www.modseventeen.com", "localhost", "127.0.0.1"];
 let schemaReady = false;
 
-export async function onRequestGet({ request, env, params }) {
+export async function onRequestGet(ctx) {
+  // 網頁查詢也計量：記到同一份每日用量（只記讀寫量較大的，避免每次瀏覽都多寫一列）
+  const { db, counter } = meter(ctx.env.DB);
+  const res = await handle({ ...ctx, env: { ...ctx.env, DB: db } });
+  const seg = Array.isArray(ctx.params.path) ? ctx.params.path : [ctx.params.path];
+  if (counter.w > 0 || counter.r > 20000) {
+    const p = record(ctx.env.DB, "網頁:" + (seg[0] || ""), counter);
+    if (ctx.waitUntil) ctx.waitUntil(p); else await p;
+  }
+  return res;
+}
+
+async function handle({ request, env, params }) {
   const url = new URL(request.url);
   if (!ALLOWED.includes(url.hostname)) return json({ error: "請從 modseventeen.com 開啟" }, 403);
   if (!env.DB) return json({ error: "Pages 專案還沒綁定 D1（變數名稱 DB）" }, 500);

@@ -15,6 +15,7 @@
 //   回補各季累計 EPS：curl -X POST "https://<worker 網址>/run?job=importeps&key=<RUN_KEY>" --data-binary @eps.csv
 import * as M from "./mops.js";
 import * as K from "./metrics.js";
+import * as U from "./usage.js";
 
 const KEEP_DAYS = 180;
 const DETAILS_PER_RUN = 12; // 每 10 分鐘抓幾則內文（量小一點，讓每次執行的 CPU 時間短一點）
@@ -43,32 +44,34 @@ export default {
     if (url.pathname !== "/run") return new Response("modseventeen-mops", { status: 200 });
     if (!env.RUN_KEY || url.searchParams.get("key") !== env.RUN_KEY) return new Response("forbidden", { status: 403 });
     const job = url.searchParams.get("job") || "all";
-    if (job === "importrevann") {
-      // 回補月營收公告（A,股號,YYYY-MM,申報日）
-      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
-      await ensureSchema(env);
-      const report = await importRevenueAnnouncements(env, await request.text());
-      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
+    if (job === "usage") {
+      // 今天（UTC）的 D1 用量：各工作讀寫了幾列
+      const u = await U.today(env.DB);
+      return new Response(JSON.stringify({
+        日期UTC: new Date().toISOString().slice(0, 10), 寫入: u.w, 寫入上限: U.DAILY_WRITE_LIMIT, 讀取: u.r, 讀取上限: U.DAILY_READ_LIMIT,
+        各項: Object.fromEntries(Object.entries(u.jobs).sort((a, b) => b[1].w - a[1].w)),
+      }, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
     }
-    if (job === "importbs") {
-      // 回補存貨與合約負債：POST 一個 CSV（B,股號,YYYYQn,存貨,合約負債流動,合約負債非流動；千元）
+    if (job.startsWith("import")) {
+      // 匯入：先檢查今天的寫入額度，再計量寫入
       if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
       await ensureSchema(env);
-      const report = await importBs(env, await request.text());
-      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
-    }
-    if (job === "importrev") {
-      // 回補月營收：POST 一個 CSV（R,股號,YYYY-MM,營收／C,股號,市場,名稱）
-      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
-      await ensureSchema(env);
-      const report = await importRevenue(env, await request.text());
-      return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
-    }
-    if (job === "importeps") {
-      // 回補各季累計 EPS：POST 一個 CSV（年度,季別,股號,累計EPS，一行一筆）
-      if (request.method !== "POST") return new Response("請用 POST 上傳檔案", { status: 405 });
-      await ensureSchema(env);
-      const report = await importEps(env, await request.text());
+      const text = await request.text();
+      const lines = text.split("\n").filter((l) => /^[ABCR],|^\d{3},[1-4],/.test(l)).length;
+      const b = await U.checkBudget(env.DB, lines);
+      if (!b.ok) {
+        return new Response(JSON.stringify({
+          拒絕: "今天的 D1 寫入額度不夠，請台灣時間明天早上 8:00 以後再匯，或把檔案切小一點",
+          今天已寫入: b.used, 這次預估: b.need, 今天還能匯入: b.room,
+        }, null, 1), { status: 429, headers: { "Content-Type": "application/json; charset=utf-8" } });
+      }
+      const { db, counter } = U.meter(env.DB);
+      const ienv = { ...env, DB: db };
+      const fn = { importrevann: importRevenueAnnouncements, importbs: importBs, importrev: importRevenue, importeps: importEps }[job];
+      if (!fn) return new Response("沒有這個匯入工作", { status: 404 });
+      const report = await fn(ienv, text);
+      await U.record(env.DB, job, counter);
+      report.d1 = { 讀: counter.r, 寫: counter.w, 今天累計寫入: b.used + counter.w };
       return new Response(JSON.stringify(report, null, 1), { headers: { "Content-Type": "application/json; charset=utf-8" } });
     }
     const jobs = job === "all" ? ["watchlist", "realtime", "latest", "daily", "pledges", "pretransfer", "monthly", "details", "reclassify"] : job.split(",");
@@ -90,14 +93,17 @@ async function runJobs(env, jobs, opts = {}) {
       continue;
     }
     const t0 = Date.now();
+    const { db, counter } = U.meter(env.DB);
+    const menv = { ...env, DB: db };
     try {
-      report[name] = await fn(env, opts);
+      report[name] = await fn(menv, opts);
       await setMeta(env, "last_" + name, JSON.stringify({ at: new Date().toISOString(), ok: true, result: report[name] }));
     } catch (err) {
       report[name] = { error: String(err.message || err) };
       await setMeta(env, "last_" + name, JSON.stringify({ at: new Date().toISOString(), ok: false, error: report[name].error })).catch(() => {});
     }
-    report[name] = { ...report[name], ms: Date.now() - t0 };
+    report[name] = { ...report[name], ms: Date.now() - t0, d1: { 讀: counter.r, 寫: counter.w } };
+    await U.record(env.DB, name, counter);
   }
   return report;
 }
@@ -318,12 +324,21 @@ async function watchlist(env) {
   return result;
 }
 
+/** 名單同步：只寫有變動的列（原本每天整份刪掉重寫，約 600 列寫入） */
 async function replaceList(env, table, list) {
   const now = new Date().toISOString();
-  const stmt = env.DB.prepare(`INSERT INTO ${table} (company_id, name, note, updated_at) VALUES (?, ?, ?, ?)`);
-  const stmts = [env.DB.prepare(`DELETE FROM ${table}`)];
-  list.forEach((w) => stmts.push(stmt.bind(w.company_id, w.name, w.note, now)));
-  await env.DB.batch(stmts);
+  const { results } = await env.DB.prepare(`SELECT company_id, name, note FROM ${table}`).all();
+  const old = new Map(results.map((r) => [r.company_id, r]));
+  const neu = new Map(list.map((w) => [w.company_id, w]));
+  const stmts = [];
+  for (const [id, w] of neu) {
+    const o = old.get(id);
+    if (!o || o.name !== w.name || (o.note || "") !== (w.note || "")) {
+      stmts.push(env.DB.prepare(`INSERT OR REPLACE INTO ${table} (company_id, name, note, updated_at) VALUES (?, ?, ?, ?)`).bind(id, w.name, w.note, now));
+    }
+  }
+  for (const id of old.keys()) if (!neu.has(id)) stmts.push(env.DB.prepare(`DELETE FROM ${table} WHERE company_id = ?`).bind(id));
+  for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));
   return list.length;
 }
 
@@ -369,7 +384,11 @@ async function revenue(env) {
     ];
     let fresh = [], announced = 0;
     if (res.changed && res.rows.length) {
-      const { results: have } = await env.DB.prepare("SELECT company_id FROM revenue_monthly WHERE ym = ?").bind(ym).all();
+      // 用主鍵（股號＋年月）逐家查，避免掃整張營收表（讀取量從十幾萬列降到一千列以內）
+      const codes = res.rows.map((r) => r.code).filter((c) => /^[0-9A-Z]{4,6}$/.test(c));
+      const { results: have } = codes.length
+        ? await env.DB.prepare(`SELECT company_id FROM revenue_monthly WHERE ym = ? AND company_id IN (${codes.map((c) => `'${c}'`).join(",")})`).bind(ym).all()
+        : { results: [] };
       const haveSet = new Set(have.map((r) => r.company_id));
       fresh = res.rows.filter((r) => r.cur != null && !haveSet.has(r.code));
       stmts.push(...K.revenueStatements(env.DB, res.rows, market, ym, now));
@@ -440,8 +459,16 @@ async function importRevenueAnnouncements(env, text) {
 /** 資產負債表：每次補一家持股／觀察名單公司（最多抓 12 季報表） */
 async function bs(env) {
   const today = M.isoDate(M.twNow());
+  // 全部補齊後記一個標記；申報期限換季或名單變動前都不用再掃（省下每晚數十萬列讀取）
+  const due = K.latestDue(today);
+  const cnt = await env.DB.prepare("SELECT (SELECT COUNT(*) FROM holdings) + (SELECT COUNT(*) FROM watchlist) AS n").first();
+  const mark = `${due.y}Q${due.q}|${cnt?.n || 0}`;
+  if ((await getMeta(env, "bs_done")) === mark) return { status: "持股與觀察名單都已補齊" };
   const code = await K.nextCompanyNeedingBs(env.DB, today);
-  if (!code) return { status: "持股與觀察名單都已補齊" };
+  if (!code) {
+    await setMeta(env, "bs_done", mark);
+    return { status: "持股與觀察名單都已補齊" };
+  }
   return { company: code, ...(await K.ensureBalanceSheets(env.DB, code, today, { maxFetch: 12 })) };
 }
 
